@@ -1,4 +1,4 @@
-# 🚗 AI-Powered Traffic Surveillance: Real-Time Speed Estimation & ALPR
+# 🚗 SMART TRAFFIC PRO
 
 [![Python Version](https://img.shields.io/badge/Python-3.11%20%7C%203.12%20%7C%203.14-blue.svg)](https://www.python.org/)
 [![Framework](https://img.shields.io/badge/Ultralytics-YOLO11m-orange.svg)](https://docs.ultralytics.com/)
