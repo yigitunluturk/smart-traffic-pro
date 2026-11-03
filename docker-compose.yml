@@ -1,0 +1,12 @@
+services:
+  traffic-surveillance:
+    build: .
+    container_name: traffic_ai_surveillance
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./output:/app/output
+      - ./config:/app/config
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
