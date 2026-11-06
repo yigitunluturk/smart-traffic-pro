@@ -1,52 +1,55 @@
-# AI Model Evaluation & Baseline Comparison Report
+# AI Model Evaluation Planning & Target Baselines
 **SEN499 Graduation Project · Section 3.3 Artificial Intelligence Compliance**  
 **Project:** AI-Powered Traffic Surveillance: Speed Estimation & ALPR
 
----
-
-## 1. Experimental Methodology
-To validate the effectiveness, accuracy, and operational latency of our proposed computer vision pipeline, we performed comparative benchmark evaluations against established baseline architectures across two key domains:
-1. **Vehicle Detection & Tracking:** YOLO11m vs. YOLOv8n vs. Faster R-CNN (ResNet-50).
-2. **License Plate Recognition (ALPR):** fast-alpr (YOLOv9-t + CCT-S-v2) vs. Tesseract OCR vs. EasyOCR.
+> **Status Note (v0-baseline):** The current repository utilizes pre-trained baseline models (stock `yolo11m.pt` and standard FastALPR). The metrics, tables, and comparisons presented in this document represent the **academic targets and planned benchmarks** for this semester. Reproducible evaluation scripts and dataset parsing logic will be developed and committed during the semester to officially produce these results.
 
 ---
 
-## 2. Vehicle Detection Benchmark Comparison
-
-Evaluated on the **Microsoft COCO Validation Set (Traffic Vehicle Subset: car, bus, truck, motorcycle)**:
-
-| Model Architecture | Parameters (M) | mAP@50 (%) | mAP@50-95 (%) | Inference Latency (CPU) | Inference Latency (GPU) | Selected |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| **Faster R-CNN (ResNet-50)** *(Baseline 1)* | 41.8 | 62.4 | 42.1 | 148 ms | 28 ms | ❌ Too slow for edge RTSP |
-| **YOLOv8n** *(Baseline 2)* | 3.2 | 68.2 | 47.9 | **18 ms** | **4.2 ms** | ❌ Lower recall on small/far vehicles |
-| **YOLO11m (Ours)** | **20.1** | **78.4** | **57.1** | **34 ms** | **7.8 ms** | ✅ **Optimal Balance (High Precision & Real-Time)** |
-
-### Key Insight:
-YOLO11m achieves a **+10.2% improvement in mAP@50** compared to the lightweight YOLOv8n baseline while maintaining real-time capabilities ($>25\text{ FPS}$ on multi-threaded CPU, $>120\text{ FPS}$ on GPU). It eliminates false negatives on distant vehicles entering the speed detection zones.
+## 1. Planned Experimental Methodology
+To validate the effectiveness, accuracy, and operational latency of our proposed computer vision pipeline against the `v0-baseline`, we will perform comparative benchmark evaluations against established baseline architectures across two key domains:
+1. **Vehicle Detection & Tracking:** Pre-trained YOLO11m vs. Fine-tuned YOLO11m (Semester Target).
+2. **License Plate Recognition (ALPR):** Standard OCR Baselines (Tesseract / EasyOCR) vs. fast-alpr with Temporal Consensus Buffer.
 
 ---
 
-## 3. License Plate Recognition (ALPR) Benchmark Comparison
+## 2. Vehicle Detection: Baseline vs. Semester Targets
 
-Evaluated on the **UFPR-ALPR Benchmark Dataset** (4,500 annotated frames, 150 vehicle tracks across 30-frame sequences):
+Evaluations will be conducted using relevant subsets of traffic datasets (e.g., UA-DETRAC or COCO Traffic Subset) to measure improvements in multi-lane traffic detection.
 
-| ALPR / OCR Solution | Character Accuracy (%) | Full Plate Accuracy (%) | Average Latency per Crop | Memory Footprint | Selected |
-| :--- | :---: | :---: | :---: | :---: | :---: |
-| **Tesseract OCR (v5.3)** *(Baseline 1)* | 78.4% | 52.1% | 68 ms | 120 MB | ❌ Highly sensitive to road blur |
-| **EasyOCR (ResNet + BiLSTM)** *(Baseline 2)* | 89.2% | 73.8% | 115 ms | 240 MB | ❌ High computational overhead |
-| **fast-alpr + Consensus Buffer (Ours)** | **96.8%** | **91.4%** | **14 ms** | **45 MB** | ✅ **High Accuracy & Ultra-Fast Inference** |
+| Model Architecture | Status | Target mAP@50 (%) | Target Inference Latency (CPU) |
+| :--- | :---: | :---: | :---: |
+| **YOLOv8n / Faster R-CNN** | *Literature Baselines* | ~ 60.0 - 68.0% | N/A |
+| **YOLO11m (Pre-trained)** | *Current v0-baseline* | ~ 70.0% | ~ 35 ms |
+| **YOLO11m (Fine-Tuned)** | **Semester Goal** | **≥ 78.0%** | **≤ 40 ms** |
 
-### Key Insight:
-fast-alpr utilizes an end-to-end YOLOv9-t detector to tightly crop the license plate before character recognition, combined with a Compact Convolutional Transformer (`CCT-S-v2`). Coupled with our original temporal consensus candidate buffer, it eliminates inter-frame flicker and achieves a **+17.6% boost in full plate accuracy** over EasyOCR while executing **8x faster**, allowing concurrent execution across multiple vehicle tracks per frame on CPU without dropping frames.
+### Semester Objective:
+The primary goal is to fine-tune the existing pre-trained YOLO11m model on specific traffic datasets to achieve a minimum **78.0% mAP@50**. This aims to eliminate false negatives on distant/small vehicles entering the polygon speed detection zones while maintaining real-time CPU processing capabilities ($>25\text{ FPS}$).
 
 ---
 
-## 4. Speed Estimation Accuracy Verification (BrnoCompSpeed Benchmark)
-Speed estimation was evaluated against verified optical/radar ground-truth sensor labels from the **BrnoCompSpeed Dataset** (18 Full-HD sequences, highway & arterial viewpoints):
+## 3. ALPR: Baseline vs. Semester Targets
+
+Evaluations will be engineered to test Turkish License Plate formats against standard benchmark subsets (such as UFPR-ALPR adapted concepts or custom annotated TR sets).
+
+| ALPR / OCR Solution | Status | Target Full Plate Accuracy (%) | Target Latency per Crop |
+| :--- | :---: | :---: | :---: |
+| **Tesseract OCR (v5.3)** | *Baseline 1* | ~ 50.0 - 60.0% | ~ 65 ms |
+| **EasyOCR (ResNet + BiLSTM)** | *Baseline 2* | ~ 70.0 - 75.0% | ~ 115 ms |
+| **fast-alpr + TR Consensus Buffer**| **Semester Goal** | **≥ 90.0%** | **≤ 20 ms** |
+
+### Semester Objective:
+While the `v0-baseline` implements single-frame fast-alpr crops, the target for this semester is to integrate a temporal consensus buffer alongside a **Turkish Plate Syntax Regex (`01-81` province codes, etc.)**. The objective is to achieve a **Full Plate Accuracy of $\ge 90.0\%$**, severely outperforming standard EasyOCR latencies and stabilizing OCR flicker.
+
+---
+
+## 4. Speed Estimation Accuracy Verification (Planned)
+Speed estimation will be rigorously evaluated against verified optical/radar ground-truth sensor labels using the **BrnoCompSpeed Dataset** (18 Full-HD sequences, highway & arterial viewpoints). 
+
+A custom script (e.g., `scripts/eval_speed.py`) will be developed to calculate the error rates mathematically:
 
 $$\text{Mean Absolute Error (MAE)} = \frac{1}{N} \sum_{i=1}^{N} |v_{\text{calculated}, i} - v_{\text{ground\_truth}, i}|$$
 
-- **Mean Absolute Error (MAE):** $1.82\text{ km/h}$ (Target: $\le 2.5\text{ km/h}$)
-- **Mean Relative Error (MRE):** $2.14\%$
-- **Root Mean Square Error (RMSE):** $2.31\text{ km/h}$
-- **Detection Reliability Rate:** $97.6\%$ across all calibrated lane transits.
+### Target Metrics (To Be Achieved):
+- **Mean Absolute Error (MAE):** $\le 2.0\text{ km/h}$
+- **Detection Reliability Rate:** $> 95.0\%$ across all calibrated lane transits.
