@@ -51,5 +51,6 @@ A custom script (e.g., `scripts/eval_speed.py`) will be developed to calculate t
 $$\text{Mean Absolute Error (MAE)} = \frac{1}{N} \sum_{i=1}^{N} |v_{\text{calculated}, i} - v_{\text{ground\_truth}, i}|$$
 
 ### Target Metrics (To Be Achieved):
-- **Mean Absolute Error (MAE):** $\le 2.0\text{ km/h}$
+```math
+\text{Mean Absolute Error (MAE)} = \frac{1}{N} \sum_{i=1}^{N} |v_{\text{calculated}, i} - v_{\text{ground-truth}, i}|
 - **Detection Reliability Rate:** $> 95.0\%$ across all calibrated lane transits.
