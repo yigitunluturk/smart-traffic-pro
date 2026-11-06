@@ -48,9 +48,5 @@ Speed estimation will be rigorously evaluated against verified optical/radar gro
 
 A custom script (e.g., `scripts/eval_speed.py`) will be developed to calculate the error rates mathematically:
 
-$$\text{Mean Absolute Error (MAE)} = \frac{1}{N} \sum_{i=1}^{N} |v_{\text{calculated}, i} - v_{\text{ground\_truth}, i}|$$
-
-### Target Metrics (To Be Achieved):
 ```math
 \text{Mean Absolute Error (MAE)} = \frac{1}{N} \sum_{i=1}^{N} |v_{\text{calculated}, i} - v_{\text{ground-truth}, i}|
-- **Detection Reliability Rate:** $> 95.0\%$ across all calibrated lane transits.
