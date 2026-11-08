@@ -56,4 +56,4 @@ docker compose up --build
 ## 📁 Project Status
 
 - `v0-baseline` (Git tag) marks the prototype that existed before this semester. Only work after this tag is evaluated.
-- Evaluation scripts (`scripts/eval_speed.py`, `scripts/eval_alpr.py`) will be added this semester. **No accuracy results are reported until these scripts have produced them.**
+- Evaluation scripts will be added this semester. **No accuracy results are reported until these scripts have produced them.**
