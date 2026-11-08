@@ -5,10 +5,7 @@ from datetime import datetime
 
 
 class TrafficDatabase:
-    """
-    Kalıcı SQLite Veritabanı Yönetim Katmanı (Persistent Storage Layer).
-    Tüm tespit seanslarını, araç geçişlerini ve hız ihlallerini ilişkisel tabloda saklar.
-    """
+    
     def __init__(self, db_path: str = "output/traffic_surveillance.db"):
         self.db_path = db_path
         os.makedirs(os.path.dirname(self.db_path) or ".", exist_ok=True)
@@ -72,7 +69,6 @@ class TrafficDatabase:
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_watchlist_plate ON watchlist(plate_text)")
             conn.commit()
 
-            # Varsayılan demo kara liste kayıtlarını ekle
             cursor.execute("SELECT COUNT(*) FROM watchlist")
             if cursor.fetchone()[0] == 0:
                 demo_watchlist = [
@@ -214,7 +210,6 @@ class TrafficDatabase:
             conn.close()
 
     def update_plate_text(self, record_id: int, new_plate: str) -> bool:
-        """Kullanıcının yanlış okunan plakayı arayüz üzerinden elle düzeltmesini sağlar."""
         conn = self._get_connection()
         try:
             cursor = conn.cursor()
@@ -228,7 +223,6 @@ class TrafficDatabase:
             conn.close()
 
     def get_record_by_id(self, record_id: int) -> Optional[Dict[str, Any]]:
-        """ID ile tekil araç kaydını getirir."""
         conn = self._get_connection()
         try:
             cursor = conn.cursor()
@@ -239,7 +233,6 @@ class TrafficDatabase:
             conn.close()
 
     def get_record_by_snapshot(self, filename: str) -> Optional[Dict[str, Any]]:
-        """Kanıt fotoğrafı dosya adına göre araç kaydını bulur."""
         conn = self._get_connection()
         try:
             cursor = conn.cursor()
@@ -250,7 +243,6 @@ class TrafficDatabase:
             conn.close()
 
     def get_watchlist(self) -> List[Dict[str, Any]]:
-        """Kara liste / aranan araçlar listesini döner."""
         conn = self._get_connection()
         try:
             cursor = conn.cursor()
@@ -260,7 +252,6 @@ class TrafficDatabase:
             conn.close()
 
     def add_to_watchlist(self, plate_text: str, reason: str, severity: str = "danger") -> bool:
-        """Kara listeye yeni plaka ekler."""
         norm_plate = plate_text.strip().upper().replace(" ", "")
         if not norm_plate:
             return False
@@ -280,7 +271,6 @@ class TrafficDatabase:
             conn.close()
 
     def remove_from_watchlist(self, item_id: int) -> bool:
-        """Kara listeden kayıt siler."""
         conn = self._get_connection()
         try:
             cursor = conn.cursor()
@@ -291,7 +281,6 @@ class TrafficDatabase:
             conn.close()
 
     def check_watchlist(self, plate_text: Optional[str]) -> Optional[Dict[str, Any]]:
-        """Verilen plakanın kara listede olup olmadığını kontrol eder."""
         if not plate_text:
             return None
         norm_plate = plate_text.strip().upper().replace(" ", "")
@@ -308,7 +297,6 @@ class TrafficDatabase:
             conn.close()
 
     def get_analytics_stats(self) -> Dict[str, Any]:
-        """Grafikler ve analiz paneli için hız dağılımı ve araç sınıfları istatistikleri üretir."""
         conn = self._get_connection()
         try:
             cursor = conn.cursor()
@@ -377,7 +365,6 @@ class TrafficDatabase:
             conn.close()
 
     def clear_records(self) -> bool:
-        """Tüm araç ve ihlal kayıtlarını veritabanından temizler."""
         conn = self._get_connection()
         try:
             cursor = conn.cursor()
