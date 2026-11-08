@@ -68,7 +68,7 @@ class FrameVisualizer:
                 
                 # Giriş Etiketi
                 pt = tuple(z.entry_polygon[0][0])
-                label = f"▼ {z.name} [ENTRY]" if z.direction == "downward" else f"▲ {z.name} [ENTRY]"
+                label = f"▼ {z.name} [GİRİŞ]" if z.direction == "downward" else f"▲ {z.name} [GİRİŞ]"
                 cv2.putText(frame, label, (pt[0], max(24, pt[1] - int(10 * factor))),
                             cv2.FONT_HERSHEY_DUPLEX, f_scale * 0.85, z.color_entry, f_thick, cv2.LINE_AA)
 
@@ -80,18 +80,24 @@ class FrameVisualizer:
         cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
 
     def draw_plate_ocr_band(self, frame: np.ndarray, top_ratio: float, bottom_ratio: float):
-        """Plaka okuma bandını şık teknolojik kesikli/siber çizgilerle çizer."""
+        """Hız ölçümü ve plaka okuma koridorunu şık teknolojik mor çizgilerle çizer."""
         h, w = frame.shape[:2]
         y_top = int(h * top_ratio)
         y_bottom = int(h * bottom_ratio)
         f_scale, b_thick, f_thick = self._get_scale(h)
 
-        # Üst ve Alt sınır çizgileri
-        cv2.line(frame, (0, y_top), (w, y_top), self.COLOR_PURPLE, max(1, b_thick // 2), cv2.LINE_AA)
-        cv2.line(frame, (0, y_bottom), (w, y_bottom), self.COLOR_PURPLE, max(1, b_thick // 2), cv2.LINE_AA)
+        # İki mor çizgi arasına çok hafif şeffaf neon mor dolgu
+        overlay = frame.copy()
+        cv2.rectangle(overlay, (0, y_top), (w, y_bottom), self.COLOR_PURPLE, -1)
+        cv2.addWeighted(overlay, 0.04, frame, 0.96, 0, frame)
+
+        # Üst ve Alt sınır çizgileri (Parlak Neon Mor Çift Hat)
+        thick = max(2, int(2 * (h / 1080.0)))
+        cv2.line(frame, (0, y_top), (w, y_top), self.COLOR_PURPLE, thick, cv2.LINE_AA)
+        cv2.line(frame, (0, y_bottom), (w, y_bottom), self.COLOR_PURPLE, thick, cv2.LINE_AA)
 
         # Şık sol köşe rozeti
-        badge_text = "⚡ ALPR OCR DETECTION ZONE"
+        badge_text = "⚡ HIZ VE PLAKA TESPİT BÖLGESİ"
         (tw, th), _ = cv2.getTextSize(badge_text, cv2.FONT_HERSHEY_DUPLEX, f_scale * 0.7, 1)
         pad = int(8 * (h / 1080.0))
         cv2.rectangle(frame, (20, y_top - th - pad * 2), (20 + tw + pad * 2, y_top), self.COLOR_DARK_SLATE, -1)
@@ -153,18 +159,24 @@ class FrameVisualizer:
         cv2.line(frame, (x2, y2), (x2 - corn_len, y2), main_color, c_thick)
         cv2.line(frame, (x2, y2), (x2, y2 - corn_len), main_color, c_thick)
 
-        # 3. Araç İçinde Tespit Edilen Plaka Kutusu (Varsa neon çerçeve)
-        if plate_res.plate_box is not None:
-            px1, py1, px2, py2 = plate_res.plate_box
-            cv2.rectangle(frame, (px1, py1), (px2, py2), self.COLOR_PURPLE, 2, cv2.LINE_AA)
+        # 3. Araç İçinde Tespit Edilen Plaka Kutusu (Kullanıcı isteğiyle mor kutucuklar kaldırıldı)
+        # plate_res.plate_box görsel kirlilik oluşturmaması için çizilmez.
 
         # 4. Modern Bilgi Rozetleri (Yukarıdan aşağıya istiflenmiş şık kapsüller)
         badges = []
 
+        CLASS_TR = {
+            "car": "OTOMOBİL",
+            "truck": "KAMYON",
+            "bus": "OTOBÜS",
+            "motorcycle": "MOTOSİKLET"
+        }
+        tr_class = CLASS_TR.get(det.class_name.lower(), det.class_name.upper())
+
         # Rozet 1: Araç Kimlik ve Sınıf Başlığı
         badges.append({
             "type": "class",
-            "text": f"#{det.track_id} {det.class_name.upper()}",
+            "text": f"#{det.track_id} {tr_class}",
             "bg_color": (28, 24, 20),
             "text_color": (230, 240, 255),
             "border_color": (80, 80, 80)
@@ -173,12 +185,12 @@ class FrameVisualizer:
         # Rozet 2: Hız Göstergesi (Hız aşımı durumunda yanıp sönen kırmızı)
         if speed_info.speed_kmh is not None:
             if is_viol:
-                speed_text = f"⚡ {speed_info.speed_kmh} km/h [VIOLATION!]"
+                speed_text = f"⚡ {speed_info.speed_kmh} km/s [İHLAL!]"
                 speed_bg = (30, 20, 220)       # Kırmızı
                 speed_txt = (255, 255, 255)
                 speed_border = (100, 100, 255)
             else:
-                speed_text = f"⚡ {speed_info.speed_kmh} km/h"
+                speed_text = f"⚡ {speed_info.speed_kmh} km/s"
                 speed_bg = (25, 120, 45)       # Yeşil
                 speed_txt = (240, 255, 240)
                 speed_border = (80, 220, 110)
@@ -300,7 +312,7 @@ class FrameVisualizer:
         cv2.circle(frame, (dot_x, dot_y), int(5 * factor), (50, 220, 100), -1)
 
         # Başlık
-        cv2.putText(frame, "ARGUS-VISION // TRAFFIC SOC", (dot_x + int(12 * factor), dot_y + int(4 * factor)),
+        cv2.putText(frame, "SMART TRAFFIC PRO // TRAFIK IZLEME", (dot_x + int(12 * factor), dot_y + int(4 * factor)),
                     cv2.FONT_HERSHEY_DUPLEX, f_scale * 1.05, (255, 255, 255), max(1, int(1.4 * factor)), cv2.LINE_AA)
 
         # Telemetri Satırları
@@ -308,12 +320,12 @@ class FrameVisualizer:
         viol_color = self.COLOR_CRIMSON if viol_count > 0 else (180, 200, 220)
 
         lines = [
-            (f"FPS: {fps:.1f}  |  FRAME: #{frame_no}", (160, 180, 200), f_scale * 0.9),
-            (f"TRACKED VEHICLES: {summary.get('total_vehicles', 0)}", (240, 245, 255), f_scale * 0.92),
-            (f"SPEED MEASURED  : {summary.get('speed_measured_count', 0)}", (100, 230, 140), f_scale * 0.92),
-            (f"PLATES RECOGNIZED: {summary.get('plate_recognized_count', 0)}", (240, 160, 255), f_scale * 0.92),
-            (f"SPEED ENFORCEMENT: {self.speed_limit} km/h", (255, 230, 80), f_scale * 0.92),
-            (f"VIOLATIONS ALERT: {viol_count}", viol_color, f_scale * 1.0),
+            (f"FPS: {fps:.1f}  |  KARE: #{frame_no}", (160, 180, 200), f_scale * 0.9),
+            (f"TAKIP EDILEN ARAC : {summary.get('total_vehicles', 0)}", (240, 245, 255), f_scale * 0.92),
+            (f"OLCULEN HIZLAR    : {summary.get('speed_measured_count', 0)}", (100, 230, 140), f_scale * 0.92),
+            (f"OKUNAN PLAKALAR   : {summary.get('plate_recognized_count', 0)}", (240, 160, 255), f_scale * 0.92),
+            (f"HIZ SINIRI        : {self.speed_limit} km/s", (255, 230, 80), f_scale * 0.92),
+            (f"IHLAL UYARILARI   : {viol_count}", viol_color, f_scale * 1.0),
         ]
 
         start_y = pos_y + int(48 * factor)
