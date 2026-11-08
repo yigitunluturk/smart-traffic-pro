@@ -106,10 +106,12 @@ class PlateRecognizer:
         vehicle_box: Tuple[int, int, int, int],
         vehicle_center: Tuple[int, int],
         frame_clean: np.ndarray,
-        frame_height: int
+        frame_height: int,
+        frame_no: int = 0
     ) -> PlateDetectionResult:
         """
         Aracın bölgesini ve plakasını analiz eder.
+        Performans optimizasyonu: Boyut filtresi ve zaman aralığı (staggered sampling).
         """
         if track_id not in self.track_states:
             self.track_states[track_id] = PlateTrackState()
@@ -122,13 +124,19 @@ class PlateRecognizer:
         zone_y_bottom = int(frame_height * self.zone_bottom_ratio)
         in_zone = zone_y_top <= cy <= zone_y_bottom
 
-        # Kilitlenmişse veya zon dışındaysa ama kilit varsa mevcut veriyi dön
-        if in_zone and not st.is_locked and self.alpr is not None:
+        # Kilitlenmişse veya zon dışındaysa OCR yapılmaz.
+        # Çok küçük araçlarda (uzakta) plaka zaten okunamaz (min 60x40 px).
+        # Her kare yerine per-arac 3 karede bir bakılır (CPU yükünü %66 düşürür).
+        should_sample = ((frame_no + track_id) % 3 == 0) if frame_no > 0 else True
+        w_box = x2 - x1
+        h_box = y2 - y1
+
+        if in_zone and not st.is_locked and self.alpr is not None and should_sample and (w_box >= 60 and h_box >= 40):
             # Araç görüntüsünü kırp
             cx1, cy1 = max(0, x1), max(0, y1)
             cx2, cy2 = min(frame_clean.shape[1], x2), min(frame_clean.shape[0], y2)
             
-            if (cx2 - cx1 > 10) and (cy2 - cy1 > 10):
+            if (cx2 - cx1 > 50) and (cy2 - cy1 > 35):
                 car_crop = frame_clean[cy1:cy2, cx1:cx2]
                 best_read = self._predict_plate(car_crop)
 
