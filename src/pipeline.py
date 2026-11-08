@@ -12,9 +12,7 @@ from .visualizer import FrameVisualizer
 
 
 class TrafficPipeline:
-    """
-    Hız ve Plaka Tespiti Uçtan Uca Entegre Pipeline Sınıfı.
-    """
+    
     def __init__(self, config: Union[str, Dict]):
         if isinstance(config, str):
             with open(config, "r", encoding="utf-8") as f:
@@ -22,7 +20,6 @@ class TrafficPipeline:
         else:
             self.cfg = config
 
-        # 1. Modül Başlatmaları
         model_cfg = self.cfg.get("model", {})
         self.detector = VehicleDetector(
             model_path=model_cfg.get("vehicle_model", "yolo11m.pt"),
@@ -79,28 +76,21 @@ class TrafficPipeline:
         frame_no: int,
         fps: float
     ) -> Tuple[np.ndarray, Dict]:
-        """
-        Tek bir video karesini işler: araç tespiti + hız hesaplama + plaka tanıma + çizim.
-        """
+        
         clean_frame = frame.copy()
         h, w = frame.shape[:2]
 
-        # Çözünürlüğe göre poligonları uyarla
         self.speed_estimator.adapt_to_frame(w, h)
 
-        # 1. Araç Tespiti ve Takibi
         detections = self.detector.detect_and_track(frame)
 
-        # 2. Hız ve Plaka Koridorunu Çiz (İki mor sınır çizgisi)
         self.visualizer.draw_plate_ocr_band(
             frame,
             self.plate_recognizer.zone_top_ratio,
             self.plate_recognizer.zone_bottom_ratio
         )
 
-        # 3. Her Tespit Edilen Araç İçin Analiz
         for det in detections:
-            # Hız Güncelleme
             speed_info = self.speed_estimator.update(
                 track_id=det.track_id,
                 center=det.center,
@@ -108,7 +98,6 @@ class TrafficPipeline:
                 fps=fps
             )
 
-            # Plaka Tanıma
             plate_res = self.plate_recognizer.process_vehicle(
                 track_id=det.track_id,
                 vehicle_box=det.box,
@@ -118,7 +107,6 @@ class TrafficPipeline:
                 frame_no=frame_no
             )
 
-            # İhlal & Kayıt Yönetimi
             self.violation_manager.register_or_update(
                 track_id=det.track_id,
                 class_name=det.class_name,
@@ -132,10 +120,8 @@ class TrafficPipeline:
                 vehicle_box=det.box
             )
 
-            # Araç Bilgilerini Ekrana Çiz
             self.visualizer.draw_vehicle(frame, det, speed_info, plate_res)
 
-        # 4. HUD İstatistik Paneli
         summary = self.violation_manager.get_summary()
         self.visualizer.draw_hud(frame, frame_no, fps, summary)
 
@@ -148,9 +134,7 @@ class TrafficPipeline:
         show_window: bool = False,
         progress_callback: Optional[Callable[[int, int, Dict], None]] = None
     ) -> Dict:
-        """
-        Tüm videoyu baştan sona işler, opsiyonel olarak çıktı MP4 videosu yazar.
-        """
+        
         if not os.path.exists(video_path):
             raise FileNotFoundError(f"Video dosyası bulunamadı: {video_path}")
 
@@ -184,7 +168,6 @@ class TrafficPipeline:
                     writer.write(annotated)
 
                 if show_window:
-                    # Ekrana sığması için gerekiyorsa yeniden boyutlandır
                     display_frame = annotated
                     if width > 1920 or height > 1080:
                         display_frame = cv2.resize(annotated, (1280, 720))
@@ -201,7 +184,6 @@ class TrafficPipeline:
             if show_window:
                 cv2.destroyAllWindows()
 
-        # Sonuçları CSV'ye kaydet
         csv_file = self.violation_manager.export_csv()
         final_summary = self.violation_manager.get_summary()
         final_summary["csv_path"] = csv_file
@@ -214,9 +196,7 @@ class TrafficPipeline:
         self,
         video_source: Union[str, int]
     ) -> Generator[Tuple[np.ndarray, int, Dict], None, None]:
-        """
-        Canlı yayın veya Streamlit vb. için generator arayüzü.
-        """
+        
         cap = cv2.VideoCapture(video_source)
         fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
         frame_no = 0
