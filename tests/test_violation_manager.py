@@ -23,7 +23,6 @@ def temp_manager():
     )
     yield vm
 
-    # Cleanup
     for path in [csv_p, db_p]:
         if os.path.exists(path):
             try:
@@ -41,7 +40,6 @@ def test_violation_registration_and_snapshot(temp_manager):
     frame = np.zeros((720, 1280, 3), dtype=np.uint8)
     box = (100, 100, 300, 300)
 
-    # Normal araç (hız limiti aşılmadı)
     rec1 = temp_manager.register_or_update(
         track_id=1,
         class_name="car",
@@ -52,7 +50,6 @@ def test_violation_registration_and_snapshot(temp_manager):
     assert rec1.is_speeding is False
     assert rec1.snapshot_path is None
 
-    # İhlal yapan araç (105 km/h > 80 km/h)
     rec2 = temp_manager.register_or_update(
         track_id=2,
         class_name="car",
