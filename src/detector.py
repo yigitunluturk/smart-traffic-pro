@@ -35,6 +35,19 @@ class VehicleDetector:
         self.device = device
         self.model = YOLO(model_path)
 
+        import torch
+        if self.device == "cuda":
+            if torch.cuda.is_available():
+                gpu_name = torch.cuda.get_device_name(0)
+                print(f"🚀 [VehicleDetector] GPU Aktif: {gpu_name} (CUDA:0)")
+                try:
+                    self.model.to("cuda")
+                except Exception as e:
+                    print(f"[VehicleDetector] Model to cuda uyarisi: {e}")
+            else:
+                print("⚠️ [VehicleDetector] CUDA bulunamadı, CPU kullanılıyor.")
+                self.device = "cpu"
+
     def detect_and_track(self, frame: np.ndarray) -> List[VehicleDetection]:
         """
         Gelen video karesinde araçları tespit eder ve ID'leri takip eder.
