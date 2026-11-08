@@ -7,14 +7,10 @@ from src.pipeline import TrafficPipeline
 
 
 def test_pipeline_end_to_end_integration():
-    """
-    Entegrasyon Testi 1: Uçtan uca kare işleme, dedeksiyon, hız hesabı, çizim ve özet üretimi.
-    """
+
     pipeline = TrafficPipeline("config/default_config.yaml")
     
-    # 720p sentetik test karesi
     frame = np.zeros((720, 1280, 3), dtype=np.uint8)
-    # Sahte araç silüeti
     cv2.rectangle(frame, (720, 565), (820, 620), (100, 100, 100), -1)
 
     annotated, summary = pipeline.process_frame(frame, frame_no=1, fps=30.0)
@@ -26,13 +22,10 @@ def test_pipeline_end_to_end_integration():
 
 
 def test_pipeline_stream_integration():
-    """
-    Entegrasyon Testi 2: Generator tabanlı video akış işleme testi.
-    """
+
     with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp_vid:
         tmp_name = tmp_vid.name
 
-    # 10 karelik sentetik test videosu oluştur
     writer = cv2.VideoWriter(tmp_name, cv2.VideoWriter_fourcc(*"mp4v"), 25.0, (640, 480))
     for _ in range(10):
         f = np.zeros((480, 640, 3), dtype=np.uint8)
