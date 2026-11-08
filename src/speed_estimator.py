@@ -37,21 +37,31 @@ class SpeedEstimator:
     """
     def __init__(
         self,
-        zones_config: List[Dict[str, Any]],
+        zones_config: Optional[List[Dict[str, Any]]] = None,
         speed_limit: int = 80,
         base_resolution: Optional[Tuple[int, int]] = (1280, 720),
         min_valid_speed: int = 5,
-        max_valid_speed: int = 240
+        max_valid_speed: int = 240,
+        band_top_ratio: float = 0.40,
+        band_bottom_ratio: float = 0.95,
+        corridor_real_distance_m: float = 24.0,
+        use_corridor_mode: bool = False
     ):
         self.speed_limit = speed_limit
         self.base_resolution = base_resolution  # (base_w, base_h)
         self.min_valid_speed = min_valid_speed
         self.max_valid_speed = max_valid_speed
-        self.raw_zones_config = zones_config
+        self.raw_zones_config = zones_config or []
         self.current_resolution: Optional[Tuple[int, int]] = None
         self.zones: List[SpeedZoneConfig] = []
         
-        self._build_zones(self.base_resolution or (1280, 720))
+        self.band_top_ratio = band_top_ratio
+        self.band_bottom_ratio = band_bottom_ratio
+        self.corridor_real_distance_m = corridor_real_distance_m
+        self.use_corridor_mode = use_corridor_mode
+
+        if self.raw_zones_config:
+            self._build_zones(self.base_resolution or (1280, 720))
 
         # Araç durum takibi: {track_id: {zone_name: {'entry_frame', 'entry_pos', ...}}}
         self.track_data: Dict[int, Dict[str, Any]] = {}
@@ -125,6 +135,57 @@ class SpeedEstimator:
         cx, cy = center
         effective_fps = fps if fps and fps > 0 else 30.0
 
+        # ----------------------------------------------------------------------
+        # 1. Mor Çizgi Koridor Modu (Plaka okuma bölgesiyle tam entegre hız hesabı)
+        # ----------------------------------------------------------------------
+        if self.use_corridor_mode:
+            target_w, target_h = self.current_resolution if self.current_resolution else (1280, 720)
+            y_top = int(target_h * self.band_top_ratio)
+            y_bottom = int(target_h * self.band_bottom_ratio)
+            band_h = max(20, abs(y_bottom - y_top))
+
+            in_corridor = (y_top <= cy <= y_bottom)
+            t_data = self.track_data[track_id]
+
+            if in_corridor and "entry_frame" not in t_data:
+                t_data["entry_frame"] = frame_no
+                t_data["entry_pos"] = (cx, cy)
+                t_data["entry_y"] = cy
+
+            if "entry_frame" in t_data:
+                entry_f = t_data["entry_frame"]
+                entry_y = t_data["entry_y"]
+                delta_y = abs(cy - entry_y)
+                delta_f = max(1, frame_no - entry_f)
+                elapsed = delta_f / effective_fps
+
+                # Araç koridorda yeterli mesafe katettiğinde (min %20 veya 40 px) veya sınıra vardığında
+                should_calc = (
+                    (delta_y >= band_h * 0.20 and elapsed >= 0.20) or
+                    (cy <= y_top + 15 or cy >= y_bottom - 15)
+                )
+
+                if should_calc and delta_y >= 30 and elapsed > 0:
+                    dist_m = (delta_y / band_h) * self.corridor_real_distance_m
+                    calc_speed = (dist_m / elapsed) * 3.6
+                    speed_int = int(round(calc_speed))
+
+                    if self.min_valid_speed <= speed_int <= self.max_valid_speed:
+                        info.speed_kmh = speed_int
+                        info.is_calculated = True
+                        info.lane_name = "Sol Şerit" if cx < (target_w / 2) else "Sağ Şerit"
+                        info.elapsed_time = round(elapsed, 2)
+                        info.entry_frame = entry_f
+                        info.exit_frame = frame_no
+                        info.is_speeding = speed_int > self.speed_limit
+                        t_data["speed"] = speed_int
+                        return info
+
+            return info
+
+        # ----------------------------------------------------------------------
+        # 2. Poligon Modu (Birim testler ve klasik kalibrasyonlar için)
+        # ----------------------------------------------------------------------
         for zone in self.zones:
             z_data = self.track_data[track_id].setdefault(zone.name, {})
 
