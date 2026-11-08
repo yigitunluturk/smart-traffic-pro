@@ -11,7 +11,6 @@ from reportlab.pdfbase.ttfonts import TTFont
 
 
 def _setup_fonts():
-    # Türkçe karakter desteği için Arial fontunu yükle
     font_paths = [
         r"C:\Windows\Fonts\arial.ttf",
         r"C:\Windows\Fonts\Arial.ttf",
@@ -31,9 +30,6 @@ FONT_NAME = _setup_fonts()
 
 
 def generate_violation_pdf(record: Dict[str, Any], output_pdf_path: str) -> str:
-    """
-    Hız ihlali yapan bir araç için resmi formatta PDF İhlal Tespit Tutanağı üretir.
-    """
     os.makedirs(os.path.dirname(output_pdf_path) or ".", exist_ok=True)
     doc = SimpleDocTemplate(
         output_pdf_path,
@@ -86,14 +82,12 @@ def generate_violation_pdf(record: Dict[str, Any], output_pdf_path: str) -> str:
 
     story = []
 
-    # 1. Başlık Alanı
     story.append(Paragraph("<b>T.C. AKILLI TRAFİK DENETLEME VE GÖZETLEME SİSTEMİ</b>", title_style))
     story.append(Spacer(1, 4))
     story.append(Paragraph("SMART TRAFFIC PRO · OTOMATİK HIZ İHLALİ TESPİT TUTANAĞI", subtitle_style))
     story.append(Spacer(1, 10))
     story.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor("#0284C7"), spaceBefore=2, spaceAfter=12))
 
-    # 2. Tutanak Bilgileri Tablosu
     class_tr = {"car": "Otomobil", "truck": "Kamyon", "bus": "Otobüs", "motorcycle": "Motosiklet"}
     try:
         rec_id = int(record.get("id") or record.get("track_id") or 0)
@@ -155,7 +149,6 @@ def generate_violation_pdf(record: Dict[str, Any], output_pdf_path: str) -> str:
     story.append(t_info)
     story.append(Spacer(1, 14))
 
-    # 3. Kanıt Fotoğrafı
     snap_path = record.get("snapshot_path")
     if snap_path:
         if not os.path.exists(snap_path):
@@ -174,14 +167,12 @@ def generate_violation_pdf(record: Dict[str, Any], output_pdf_path: str) -> str:
         )))
         story.append(Spacer(1, 6))
         try:
-            # En-boy oranını koruyarak A4 genişliğine uydur
             img = RLImage(snap_path, width=520, height=270)
             story.append(img)
             story.append(Spacer(1, 10))
         except Exception as ie:
             story.append(Paragraph(f"[Fotoğraf yüklenemedi: {ie}]", label_style))
 
-    # 4. Yasal Uyarı ve Doğrulama Alanı
     notice_text = (
         "<b>NOT VE YASAL BİLGİLENDİRME:</b> Bu tutanak, "
         "SMART TRAFFIC PRO Yapay Zeka Trafik İzleme Sistemi tarafından otomatik üretilmiştir. "
@@ -198,7 +189,6 @@ def generate_violation_pdf(record: Dict[str, Any], output_pdf_path: str) -> str:
     story.append(notice_table)
     story.append(Spacer(1, 12))
 
-    # 5. Onay ve İmza Alanı
     sign_data = [
         [
             Paragraph("<b>Sistem Operatörü:</b><br/>Yiğit Ünlütürk (210129060)<br/>SMART TRAFFIC PRO AI SOC", label_style),
