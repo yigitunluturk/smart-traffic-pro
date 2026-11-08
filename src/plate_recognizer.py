@@ -30,10 +30,7 @@ class PlateDetectionResult:
 
 
 class PlateRecognizer:
-    """
-    fast-alpr ve OCR tabanlı araç plaka tespit ve doğrulama modülü.
-    Aday toplama ve en yüksek güvenilirlik skoruna göre plaka kilitleme uygular.
-    """
+    
     def __init__(
         self,
         detector_model: str = "yolo-v9-t-384-license-plate-end2end",
@@ -52,11 +49,9 @@ class PlateRecognizer:
         self.n_valid_reads = n_valid_reads
         self.plate_format = plate_format
 
-        # fast-alpr başlatma
         self.alpr = None
         self._init_alpr()
 
-        # Track bazlı durum sözlüğü: {track_id: PlateTrackState}
         self.track_states: Dict[int, PlateTrackState] = {}
 
     def _init_alpr(self):
@@ -77,11 +72,9 @@ class PlateRecognizer:
 
     @staticmethod
     def normalize_plate(text: str) -> str:
-        """Karakterleri temizler ve büyük harfe çevirir."""
         return re.sub(r"[^A-Z0-9]", "", (text or "").upper())
 
     def is_valid_plate(self, text: str) -> bool:
-        """Plaka format doğrulaması (TR, EU ve Genel)."""
         t = self.normalize_plate(text)
         if not (4 <= len(t) <= 10):
             return False
@@ -93,8 +86,6 @@ class PlateRecognizer:
             return False
 
         if self.plate_format == "tr":
-            # Türkiye Plaka Formatları: 34ABC123, 06A1234, 35AB123 vb.
-            # İlk 2 karakter il kodu (01-81)
             if not (t[:2].isdigit() and 1 <= int(t[:2]) <= 81):
                 return False
 
@@ -109,10 +100,7 @@ class PlateRecognizer:
         frame_height: int,
         frame_no: int = 0
     ) -> PlateDetectionResult:
-        """
-        Aracın bölgesini ve plakasını analiz eder.
-        Performans optimizasyonu: Boyut filtresi ve zaman aralığı (staggered sampling).
-        """
+        
         if track_id not in self.track_states:
             self.track_states[track_id] = PlateTrackState()
 
@@ -124,15 +112,12 @@ class PlateRecognizer:
         zone_y_bottom = int(frame_height * self.zone_bottom_ratio)
         in_zone = zone_y_top <= cy <= zone_y_bottom
 
-        # Kilitlenmişse veya zon dışındaysa OCR yapılmaz.
-        # Çok küçük araçlarda (uzakta) plaka zaten okunamaz (min 60x40 px).
-        # Her kare yerine per-arac 3 karede bir bakılır (CPU yükünü %66 düşürür).
+
         should_sample = ((frame_no + track_id) % 3 == 0) if frame_no > 0 else True
         w_box = x2 - x1
         h_box = y2 - y1
 
         if in_zone and not st.is_locked and self.alpr is not None and should_sample and (w_box >= 60 and h_box >= 40):
-            # Araç görüntüsünü kırp
             cx1, cy1 = max(0, x1), max(0, y1)
             cx2, cy2 = min(frame_clean.shape[1], x2), min(frame_clean.shape[0], y2)
             
@@ -148,7 +133,6 @@ class PlateRecognizer:
                     if pconf >= self.min_ocr_conf:
                         st.candidates.append(PlateCandidate(text=ptext, confidence=pconf))
                         if len(st.candidates) >= self.n_valid_reads:
-                            # En yüksek güvenilirlikli okumayı kilitle
                             best_cand = max(st.candidates, key=lambda c: c.confidence)
                             st.locked_text = best_cand.text
                             st.locked_conf = round(best_cand.confidence, 2)
