@@ -19,7 +19,7 @@ The system is an end-to-end automated intelligent transportation system (ITS) pi
 
 Key points, consistent with the RSA:
 
-- **Single user interface:** the Streamlit dashboard (`app.py`). The former Flask panel is kept under `legacy/` and is unsupported.
+- **Single user interface:** the Streamlit dashboard (`app.py`).
 - **Target plate format:** Turkish plates (province code 01–81). UFPR-ALPR (Brazilian plates) is not used.
 - **Inference on CPU;** GPU (Google Colab) is used only for fine-tuning YOLO11m on UA-DETRAC.
 - **No results are claimed** until `scripts/eval_speed.py` and `scripts/eval_alpr.py` have produced them.
