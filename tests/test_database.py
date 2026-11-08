@@ -93,26 +93,21 @@ def test_update_plate_text(temp_db):
 
 
 def test_watchlist_operations(temp_db):
-    # Varsayılan demo kayıtları kontrol et
     watchlist = temp_db.get_watchlist()
     assert len(watchlist) >= 2
 
-    # Yeni aranan araç ekleme
     success = temp_db.add_to_watchlist("06TEST99", "Çalıntı İhbarı", "danger")
     assert success is True
 
-    # Eşleşme kontrolü (boşluksuz ve küçük/büyük harf duyarsız)
     match = temp_db.check_watchlist("06 test 99")
     assert match is not None
     assert match["plate_text"] == "06TEST99"
     assert match["reason"] == "Çalıntı İhbarı"
 
-    # Silme işlemi
     item_id = match["id"]
     removed = temp_db.remove_from_watchlist(item_id)
     assert removed is True
 
-    # Silindikten sonra eşleşmemeli
     assert temp_db.check_watchlist("06TEST99") is None
 
 
