@@ -2,7 +2,6 @@ import os
 import pytest
 from src.report_generator import generate_violation_pdf
 
-
 def test_generate_violation_pdf(tmp_path):
     output_pdf = str(tmp_path / "test_violation_report.pdf")
     record = {
@@ -20,4 +19,4 @@ def test_generate_violation_pdf(tmp_path):
 
     pdf_path = generate_violation_pdf(record, output_pdf)
     assert os.path.exists(pdf_path)
-    assert os.path.getsize(pdf_path) > 1000  # Generated PDF has valid content
+    assert os.path.getsize(pdf_path) > 1000
