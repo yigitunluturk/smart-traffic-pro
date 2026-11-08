@@ -31,10 +31,6 @@ class VehicleSpeedInfo:
 
 
 class SpeedEstimator:
-    """
-    Video FPS ve kalibre edilmiş yol bölgeleri üzerinden araç hızını hesaplayan modül.
-    Farklı çözünürlükleri (720p, 1080p, 4K) otomatik ölçeklendirme desteğine sahiptir.
-    """
     def __init__(
         self,
         zones_config: Optional[List[Dict[str, Any]]] = None,
@@ -63,9 +59,7 @@ class SpeedEstimator:
         if self.raw_zones_config:
             self._build_zones(self.base_resolution or (1280, 720))
 
-        # Araç durum takibi: {track_id: {zone_name: {'entry_frame', 'entry_pos', ...}}}
         self.track_data: Dict[int, Dict[str, Any]] = {}
-        # Nihai hesaplanan hız sonuçları: {track_id: VehicleSpeedInfo}
         self.results: Dict[int, VehicleSpeedInfo] = {}
 
     def _build_zones(self, target_resolution: Tuple[int, int]):
@@ -81,7 +75,6 @@ class SpeedEstimator:
             raw_entry = z["entry_polygon"]
             raw_exit = z["exit_polygon"]
 
-            # Otomatik çözünürlük ölçekleme
             scaled_entry = [[int(pt[0] * scale_x), int(pt[1] * scale_y)] for pt in raw_entry]
             scaled_exit = [[int(pt[0] * scale_x), int(pt[1] * scale_y)] for pt in raw_exit]
 
@@ -109,7 +102,6 @@ class SpeedEstimator:
             )
 
     def adapt_to_frame(self, frame_w: int, frame_h: int):
-        """Gelen video çözünürlüğüne göre poligonları otomatik ölçekler."""
         if self.current_resolution != (frame_w, frame_h):
             self._build_zones((frame_w, frame_h))
 
@@ -120,9 +112,7 @@ class SpeedEstimator:
         frame_no: int,
         fps: float
     ) -> VehicleSpeedInfo:
-        """
-        Aracın anlık konumuna göre bölgelerle etkileşimini kontrol eder ve hız hesaplar.
-        """
+
         if track_id not in self.results:
             self.results[track_id] = VehicleSpeedInfo(track_id=track_id)
         if track_id not in self.track_data:
@@ -135,9 +125,6 @@ class SpeedEstimator:
         cx, cy = center
         effective_fps = fps if fps and fps > 0 else 30.0
 
-        # ----------------------------------------------------------------------
-        # 1. Mor Çizgi Koridor Modu (Plaka okuma bölgesiyle tam entegre hız hesabı)
-        # ----------------------------------------------------------------------
         if self.use_corridor_mode:
             target_w, target_h = self.current_resolution if self.current_resolution else (1280, 720)
             y_top = int(target_h * self.band_top_ratio)
@@ -159,7 +146,6 @@ class SpeedEstimator:
                 delta_f = max(1, frame_no - entry_f)
                 elapsed = delta_f / effective_fps
 
-                # Araç koridorda yeterli mesafe katettiğinde (min %20 veya 40 px) veya sınıra vardığında
                 should_calc = (
                     (delta_y >= band_h * 0.20 and elapsed >= 0.20) or
                     (cy <= y_top + 15 or cy >= y_bottom - 15)
@@ -183,19 +169,14 @@ class SpeedEstimator:
 
             return info
 
-        # ----------------------------------------------------------------------
-        # 2. Poligon Modu (Birim testler ve klasik kalibrasyonlar için)
-        # ----------------------------------------------------------------------
         for zone in self.zones:
             z_data = self.track_data[track_id].setdefault(zone.name, {})
 
-            # 1. Giriş bölgesine girdi mi?
             in_entry = cv2.pointPolygonTest(zone.entry_polygon, (float(cx), float(cy)), False) >= 0
             if in_entry and "entry_frame" not in z_data:
                 z_data["entry_frame"] = frame_no
                 z_data["entry_pos"] = (cx, cy)
 
-            # 2. Giriş yapılmışsa ve çıkış bölgesine girdi mi?
             if "entry_frame" in z_data and "exit_frame" not in z_data:
                 in_exit = cv2.pointPolygonTest(zone.exit_polygon, (float(cx), float(cy)), False) >= 0
                 if in_exit:
@@ -213,13 +194,10 @@ class SpeedEstimator:
                         pixel_diff = float(np.hypot(cx - entry_cx, cy - entry_cy))
 
                     if pixel_diff > 0 and elapsed > 0:
-                        # Mesafe oran-orantısı
                         speed_base = (zone.real_distance_m / elapsed) * 3.6  # m/s -> km/h
-                        # Piksel farkı oran düzeltmesi
                         calculated_speed = speed_base * (pixel_diff / max(1.0, zone.calib_pixel_length))
                         speed_int = int(round(calculated_speed))
 
-                        # Uç değerleri filtreleme
                         if self.min_valid_speed <= speed_int <= self.max_valid_speed:
                             info.speed_kmh = speed_int
                             info.is_calculated = True
