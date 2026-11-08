@@ -35,18 +35,25 @@ class TrafficPipeline:
         speed_cfg = self.cfg.get("speed", {})
         self.speed_limit = speed_cfg.get("speed_limit", 80)
         base_res = speed_cfg.get("base_resolution", [1280, 720])
+        plate_cfg = self.cfg.get("plate", {})
+        top_ratio = float(plate_cfg.get("zone_top_ratio", 0.40))
+        bottom_ratio = float(plate_cfg.get("zone_bottom_ratio", 0.95))
+
         self.speed_estimator = SpeedEstimator(
             zones_config=speed_cfg.get("zones", []),
             speed_limit=self.speed_limit,
-            base_resolution=tuple(base_res) if base_res else None
+            base_resolution=tuple(base_res) if base_res else None,
+            band_top_ratio=top_ratio,
+            band_bottom_ratio=bottom_ratio,
+            corridor_real_distance_m=float(speed_cfg.get("corridor_real_distance_m", 24.0)),
+            use_corridor_mode=True
         )
 
-        plate_cfg = self.cfg.get("plate", {})
         self.plate_recognizer = PlateRecognizer(
             detector_model=plate_cfg.get("detector_model", "yolo-v9-t-384-license-plate-end2end"),
             ocr_model=plate_cfg.get("ocr_model", "cct-s-v2-global-model"),
-            zone_top_ratio=plate_cfg.get("zone_top_ratio", 0.40),
-            zone_bottom_ratio=plate_cfg.get("zone_bottom_ratio", 0.95),
+            zone_top_ratio=top_ratio,
+            zone_bottom_ratio=bottom_ratio,
             min_ocr_conf=plate_cfg.get("min_ocr_conf", 0.40),
             n_valid_reads=plate_cfg.get("n_valid_reads", 3),
             plate_format=plate_cfg.get("plate_format", "all")
@@ -84,8 +91,7 @@ class TrafficPipeline:
         # 1. Araç Tespiti ve Takibi
         detections = self.detector.detect_and_track(frame)
 
-        # 2. Hız Bölgelerini ve Plaka Bandını Çiz
-        self.visualizer.draw_zones(frame, self.speed_estimator.get_zones())
+        # 2. Hız ve Plaka Koridorunu Çiz (İki mor sınır çizgisi)
         self.visualizer.draw_plate_ocr_band(
             frame,
             self.plate_recognizer.zone_top_ratio,
@@ -108,7 +114,8 @@ class TrafficPipeline:
                 vehicle_box=det.box,
                 vehicle_center=det.center,
                 frame_clean=clean_frame,
-                frame_height=h
+                frame_height=h,
+                frame_no=frame_no
             )
 
             # İhlal & Kayıt Yönetimi
