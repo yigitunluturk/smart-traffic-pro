@@ -32,13 +32,13 @@
 
 ### Q2: "Why did you choose YOLO11m instead of older models like YOLOv5 or YOLOv8?"
 > **Answer:**  
-> "We conducted a comparative baseline study. While lightweight models like YOLOv8n are fast, they suffer from lower recall on distant or partially occluded vehicles entering lane zones. YOLO11m features optimized C3k2 blocks and SPPF modules, achieving superior detection accuracy over YOLOv8n while maintaining real-time performance on standard CPU. The exact mAP figures will be reported after our evaluation scripts run on the standardized test split this semester."
+> "YOLO11m is a stronger architecture than lightweight models such as YOLOv8n (C3k2 blocks, SPPF), which matters for distant or partially occluded vehicles. We do not claim this from the literature alone: stock YOLOv8n and stock YOLO11m are our baselines, and we compare them with our UA-DETRAC fine-tuned YOLO11m. The exact mAP figures will be reported after our evaluation scripts run on the standardized test split this semester."
 
 ---
 
 ### Q3: "License plate OCR can misread characters due to glare or motion blur. How does your system handle this?"
 > **Answer:**  
-> "We designed a multi-frame **Temporal Candidate Accumulation & Confidence Locking** algorithm (`src/plate_recognizer.py`). Rather than accepting a single-frame read, the system buffers candidate readings as the vehicle travels through the detection zone. Once 3 valid Turkish-format-matching readings are gathered, the system locks the reading with the highest statistical OCR confidence to the vehicle's persistent `track_id`. Once locked, it stays attached to the vehicle even after it leaves the OCR zone."
+> "We designed a multi-frame **Temporal Candidate Accumulation & Confidence Locking** algorithm (`src/plate_recognizer.py`). Rather than accepting a single-frame read, the system buffers candidate readings as the vehicle travels through the detection zone. Once 3 consistent readings are gathered (this semester, only candidates that pass the Turkish plate syntax validator count), the system locks the reading with the highest statistical OCR confidence to the vehicle's persistent `track_id`. Once locked, it stays attached to the vehicle even after it leaves the OCR zone."
 
 ---
 
@@ -52,4 +52,4 @@
 
 ### Q5: "How does the project adhere to software engineering and testing standards?"
 > **Answer:**  
-> "The project follows a strictly modular 3-tier architecture with full separation of concerns. Automated unit and integration tests cover database queries, speed mathematics, Turkish plate regex validation, and pipeline integration. All tests are integrated into our **GitHub Actions CI/CD** pipeline (`.github/workflows/ci.yml`), and the application is containerized with **Docker** and **Docker Compose** for zero-friction deployment on any operating system."
+> "The project follows a strictly modular 3-tier architecture with full separation of concerns. Automated unit and integration tests cover database queries, speed mathematics and pipeline integration; tests for the Turkish plate validator are added together with the validator this semester. All tests are integrated into our **GitHub Actions CI/CD** pipeline (`.github/workflows/ci.yml`), and the application is containerized with **Docker** and **Docker Compose** for zero-friction deployment on any operating system."

@@ -3,7 +3,7 @@ services:
     build: .
     container_name: traffic_ai_surveillance
     ports:
-      - "5000:5000"
+      - "8501:8501"
     volumes:
       - ./output:/app/output
       - ./config:/app/config

@@ -1,52 +1,59 @@
-# AI Model Evaluation Planning & Target Baselines
+# AI Model Evaluation Plan & Baseline Comparison
 **SEN499 Graduation Project · Section 3.3 Artificial Intelligence Compliance**  
-**Project:** AI-Powered Traffic Surveillance: Speed Estimation & ALPR
+**Project:** SMART TRAFFIC PRO — Speed Estimation & ALPR
 
-> **Status Note (v0-baseline):** The current repository utilizes pre-trained baseline models (stock `yolo11m.pt` and standard FastALPR). The metrics, tables, and comparisons presented in this document represent the **academic targets and planned benchmarks** for this semester. Reproducible evaluation scripts and dataset parsing logic will be developed and committed during the semester to officially produce these results.
-
----
-
-## 1. Planned Experimental Methodology
-To validate the effectiveness, accuracy, and operational latency of our proposed computer vision pipeline against the `v0-baseline`, we will perform comparative benchmark evaluations against established baseline architectures across two key domains:
-1. **Vehicle Detection & Tracking:** Pre-trained YOLO11m vs. Fine-tuned YOLO11m (Semester Target).
-2. **License Plate Recognition (ALPR):** Standard OCR Baselines (Tesseract / EasyOCR) vs. fast-alpr with Temporal Consensus Buffer.
+> **Status note:** The repository at the `v0-baseline` tag uses the stock pre-trained
+> `yolo11m.pt` and standard FastALPR. **This document contains no measured results.**
+> All numbers below are *targets* taken from the RSA document. Results will be added
+> only after `scripts/eval_speed.py`, `scripts/eval_alpr.py` and the detector
+> evaluation have been run on the datasets described here.
 
 ---
 
-## 2. Vehicle Detection: Baseline vs. Semester Targets
+## 1. Baseline Comparison (as in the RSA, Section 4)
 
-Evaluations will be conducted using relevant subsets of traffic datasets (e.g., UA-DETRAC or COCO Traffic Subset) to measure improvements in multi-lane traffic detection.
-
-| Model Architecture | Status | Target mAP@50 (%) | Target Inference Latency (CPU) |
-| :--- | :---: | :---: | :---: |
-| **YOLOv8n / Faster R-CNN** | *Literature Baselines* | ~ 60.0 - 68.0% | N/A |
-| **YOLO11m (Pre-trained)** | *Current v0-baseline* | ~ 70.0% | ~ 35 ms |
-| **YOLO11m (Fine-Tuned)** | **Semester Goal** | **≥ 78.0%** | **≤ 40 ms** |
-
-### Semester Objective:
-The primary goal is to fine-tune the existing pre-trained YOLO11m model on specific traffic datasets to achieve a minimum **78.0% mAP@50**. This aims to eliminate false negatives on distant/small vehicles entering the polygon speed detection zones while maintaining real-time CPU processing capabilities ($>25\text{ FPS}$).
+| Task | Baseline(s) | Proposed | Metric / target |
+| :--- | :--- | :--- | :--- |
+| Vehicle detection | Stock pre-trained YOLO11m (`v0-baseline`); stock YOLOv8n as a lightweight reference | YOLO11m fine-tuned on UA-DETRAC | mAP@50 on the held-out UA-DETRAC test split; target **+8 points** over stock YOLO11m |
+| Plate recognition | (a) EasyOCR on plate crops; (b) FastALPR single frame | FastALPR + temporal consensus buffer + Turkish syntax validation | Full plate accuracy (FPA) on the Turkish test set; target **FPA ≥ 90%** |
+| Speed estimation | Naive pixel-displacement speed (no perspective calibration) | Perspective calibration with d_real (`v0-baseline`) | MAE on BrnoCompSpeed; target **≤ 2.0 km/h** |
 
 ---
 
-## 3. ALPR: Baseline vs. Semester Targets
+## 2. Datasets
 
-Evaluations will be engineered to test Turkish License Plate formats against standard benchmark subsets (such as UFPR-ALPR adapted concepts or custom annotated TR sets).
-
-| ALPR / OCR Solution | Status | Target Full Plate Accuracy (%) | Target Latency per Crop |
-| :--- | :---: | :---: | :---: |
-| **Tesseract OCR (v5.3)** | *Baseline 1* | ~ 50.0 - 60.0% | ~ 65 ms |
-| **EasyOCR (ResNet + BiLSTM)** | *Baseline 2* | ~ 70.0 - 75.0% | ~ 115 ms |
-| **fast-alpr + TR Consensus Buffer**| **Semester Goal** | **≥ 90.0%** | **≤ 20 ms** |
-
-### Semester Objective:
-While the `v0-baseline` implements single-frame fast-alpr crops, the target for this semester is to integrate a temporal consensus buffer alongside a **Turkish Plate Syntax Regex (`01-81` province codes, etc.)**. The objective is to achieve a **Full Plate Accuracy of $\ge 90.0\%$**, severely outperforming standard EasyOCR latencies and stabilizing OCR flicker.
+- **UA-DETRAC** — detector fine-tuning (GPU on Google Colab) and detection evaluation.
+  A fixed train/validation/test split is stored in the dataset configuration file.
+- **BrnoCompSpeed** — speed evaluation against laser-gate ground-truth speeds.
+- **Turkish plate test set** — plate recognition evaluation. Source, size, license and
+  KVKK handling are defined in the updated RSA document. Plate images are personal data
+  and are **not** committed to this repository.
+- **UFPR-ALPR is not used**: it contains Brazilian plates, which differ from the Turkish format.
 
 ---
 
-## 4. Speed Estimation Accuracy Verification (Planned)
-Speed estimation will be rigorously evaluated against verified optical/radar ground-truth sensor labels using the **BrnoCompSpeed Dataset** (18 Full-HD sequences, highway & arterial viewpoints). 
+## 3. Target Plate Format (Turkey)
 
-A custom script (e.g., `scripts/eval_speed.py`) will be developed to calculate the error rates mathematically:
+Province code `01`–`81`, one to three letters (Q, W, X not used) and two to four digits,
+e.g. `34 ABC 123`. Invalid OCR candidates are flagged as low confidence and can be
+corrected manually in the Streamlit dashboard (FR-09).
+
+---
+
+## 4. Metrics
+
+- **mAP@50** — standard Ultralytics validation on the UA-DETRAC test split.
+- **Full plate accuracy (FPA)** — share of test plates where every character is correct.
+- **Speed MAE**
 
 ```math
-\text{Mean Absolute Error (MAE)} = \frac{1}{N} \sum_{i=1}^{N} |v_{\text{calculated}, i} - v_{\text{ground-truth}, i}|
+\text{MAE} = \frac{1}{N} \sum_{i=1}^{N} \left| v_{\text{estimated}, i} - v_{\text{ground-truth}, i} \right|
+```
+
+- **Throughput** — dashboard FPS counter on a 1080p input at `imgsz=640` (target ≥ 10 FPS on CPU, NFR-3).
+
+---
+
+## 5. Results
+
+*To be filled in only with numbers produced by the scripts above.*
