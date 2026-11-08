@@ -10,16 +10,6 @@ from .detector import VehicleDetection
 
 
 class FrameVisualizer:
-    """
-    Üst düzey Siber Trafik ve Otonom Araç HUD Görselleştirme Katmanı.
-    Özellikler:
-    - Yarı saydam siber kutular ve neon köşe vizörleri (Corner Reticles)
-    - Araç hareket yörüngesi kuyrukları (Fading Motion Trails)
-    - Gerçekçi Avrupa/Türk tipi plaka grafiği (Mavi şeritli plaka rozeti)
-    - Hız durumuna göre dinamik parlayan hız hapları (Speed Pills)
-    - Yarı saydam akıllı şerit poligonları ve yön okları
-    - Profesyonel Siber Komuta Merkezi (SOC) HUD Paneli
-    """
     def __init__(
         self,
         hud_enabled: bool = True,
@@ -32,7 +22,6 @@ class FrameVisualizer:
         self.user_font_scale = font_scale
         self.speed_limit = speed_limit
 
-        # Araç hareket yörünge geçmişi: {track_id: deque([(cx, cy), ...], maxlen=20)}
         self.trails: Dict[int, deque] = {}
 
         # Siber Renk Paleti (BGR)
@@ -45,7 +34,6 @@ class FrameVisualizer:
         self.COLOR_WHITE = (255, 255, 255)
 
     def _get_scale(self, frame_h: int) -> Tuple[float, int, int]:
-        """Çözünürlüğe (720p, 1080p, 4K) göre dinamik ölçek çarpanı."""
         factor = max(0.65, frame_h / 1080.0)
         f_scale = self.user_font_scale if self.user_font_scale is not None else (0.60 * factor)
         b_thick = self.user_box_thickness if self.user_box_thickness is not None else max(2, int(2 * factor))
@@ -53,7 +41,6 @@ class FrameVisualizer:
         return f_scale, b_thick, f_thick
 
     def draw_zones(self, frame: np.ndarray, zones: List[SpeedZoneConfig]):
-        """Şerit bölgelerini şeffaf neon dolgu ve yön göstergeleriyle çizer."""
         h, w = frame.shape[:2]
         factor = max(0.65, h / 1080.0)
         f_scale, b_thick, f_thick = self._get_scale(h)
@@ -62,18 +49,15 @@ class FrameVisualizer:
         alpha = 0.22
 
         for z in zones:
-            # 1. Giriş Bölgesi (Neon Sarı/Kehribar)
             if len(z.entry_polygon) > 0:
                 cv2.fillPoly(overlay, [z.entry_polygon], z.color_entry)
                 cv2.polylines(frame, [z.entry_polygon], True, z.color_entry, b_thick, cv2.LINE_AA)
                 
-                # Giriş Etiketi
                 pt = tuple(z.entry_polygon[0][0])
                 label = f"▼ {z.name} [GİRİŞ]" if z.direction == "downward" else f"▲ {z.name} [GİRİŞ]"
                 cv2.putText(frame, label, (pt[0], max(24, pt[1] - int(10 * factor))),
                             cv2.FONT_HERSHEY_DUPLEX, f_scale * 0.85, z.color_entry, f_thick, cv2.LINE_AA)
 
-            # 2. Çıkış Bölgesi (Kırmızı/Bitiş)
             if len(z.exit_polygon) > 0:
                 cv2.fillPoly(overlay, [z.exit_polygon], z.color_exit)
                 cv2.polylines(frame, [z.exit_polygon], True, z.color_exit, b_thick, cv2.LINE_AA)
@@ -81,23 +65,19 @@ class FrameVisualizer:
         cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
 
     def draw_plate_ocr_band(self, frame: np.ndarray, top_ratio: float, bottom_ratio: float):
-        """Hız ölçümü ve plaka okuma koridorunu şık teknolojik mor çizgilerle çizer."""
         h, w = frame.shape[:2]
         y_top = int(h * top_ratio)
         y_bottom = int(h * bottom_ratio)
         f_scale, b_thick, f_thick = self._get_scale(h)
 
-        # İki mor çizgi arasına çok hafif şeffaf neon mor dolgu
         overlay = frame.copy()
         cv2.rectangle(overlay, (0, y_top), (w, y_bottom), self.COLOR_PURPLE, -1)
         cv2.addWeighted(overlay, 0.04, frame, 0.96, 0, frame)
 
-        # Üst ve Alt sınır çizgileri (Parlak Neon Mor Çift Hat)
         thick = max(2, int(2 * (h / 1080.0)))
         cv2.line(frame, (0, y_top), (w, y_top), self.COLOR_PURPLE, thick, cv2.LINE_AA)
         cv2.line(frame, (0, y_bottom), (w, y_bottom), self.COLOR_PURPLE, thick, cv2.LINE_AA)
 
-        # Şık sol köşe rozeti
         badge_text = "⚡ HIZ VE PLAKA TESPİT BÖLGESİ"
         (tw, th), _ = cv2.getTextSize(badge_text, cv2.FONT_HERSHEY_DUPLEX, f_scale * 0.7, 1)
         pad = int(8 * (h / 1080.0))
@@ -113,7 +93,6 @@ class FrameVisualizer:
         speed_info: VehicleSpeedInfo,
         plate_res: PlateDetectionResult
     ):
-        """Tek bir araç için fütüristik köşe vizörü, hız rozeti ve gerçekçi plaka çizer."""
         x1, y1, x2, y2 = det.box
         cx, cy = det.center
         h, w = frame.shape[:2]
@@ -123,7 +102,6 @@ class FrameVisualizer:
         is_viol = speed_info.is_speeding
         main_color = self.COLOR_CRIMSON if is_viol else self.COLOR_EMERALD
 
-        # 1. Araç Hareket Kuyruğu (Motion Trajectory Trail)
         if det.track_id not in self.trails:
             self.trails[det.track_id] = deque(maxlen=16)
         self.trails[det.track_id].append((cx, cy))
@@ -135,15 +113,12 @@ class FrameVisualizer:
             thickness = max(1, int(factor * (i / len(trail_pts)) * 3))
             cv2.line(frame, pt1, pt2, main_color, thickness, cv2.LINE_AA)
 
-        # 2. Yarı Saydam Araç Kutusu ve Köşe Vizörleri (Reticles)
         overlay = frame.copy()
         cv2.rectangle(overlay, (x1, y1), (x2, y2), main_color, -1)
         cv2.addWeighted(overlay, 0.08, frame, 0.92, 0, frame)
 
-        # İnce çevre kutusu
         cv2.rectangle(frame, (x1, y1), (x2, y2), main_color, 1, cv2.LINE_AA)
 
-        # Parlayan 4 köşe L-vizörleri (Corner Brackets)
         corn_len = max(12, int(min(x2 - x1, y2 - y1) * 0.20))
         c_thick = max(2, int(b_thick * 1.5))
 
@@ -160,10 +135,6 @@ class FrameVisualizer:
         cv2.line(frame, (x2, y2), (x2 - corn_len, y2), main_color, c_thick)
         cv2.line(frame, (x2, y2), (x2, y2 - corn_len), main_color, c_thick)
 
-        # 3. Araç İçinde Tespit Edilen Plaka Kutusu (Kullanıcı isteğiyle mor kutucuklar kaldırıldı)
-        # plate_res.plate_box görsel kirlilik oluşturmaması için çizilmez.
-
-        # 4. Modern Bilgi Rozetleri (Yukarıdan aşağıya istiflenmiş şık kapsüller)
         badges = []
 
         CLASS_TR = {
@@ -174,7 +145,6 @@ class FrameVisualizer:
         }
         tr_class = CLASS_TR.get(det.class_name.lower(), det.class_name.upper())
 
-        # Rozet 1: Araç Kimlik ve Sınıf Başlığı
         badges.append({
             "type": "class",
             "text": f"#{det.track_id} {tr_class}",
@@ -183,7 +153,6 @@ class FrameVisualizer:
             "border_color": (80, 80, 80)
         })
 
-        # Rozet 2: Hız Göstergesi (Hız aşımı durumunda yanıp sönen kırmızı)
         if speed_info.speed_kmh is not None:
             if is_viol:
                 speed_text = f"⚡ {speed_info.speed_kmh} km/s [İHLAL!]"
@@ -204,7 +173,6 @@ class FrameVisualizer:
                 "border_color": speed_border
             })
 
-        # Rozet 3: Plaka Kartı (Gerçekçi mavi bantlı TR/EU plaka stili)
         if plate_res.plate_text:
             conf_str = f" (%{int(plate_res.confidence * 100)})" if plate_res.confidence else ""
             status_str = " 🔒" if plate_res.is_locked else ""
@@ -215,14 +183,12 @@ class FrameVisualizer:
                 "is_locked": plate_res.is_locked
             })
 
-        # Rozetleri Çiz
         cur_y = y1 - int(8 * factor)
         pad_x = int(8 * factor)
         pad_y = int(5 * factor)
 
         for b in reversed(badges):
             if b["type"] == "plate":
-                # Özel Gerçekçi Plaka Tasarımı (Beyaz Zemin, Mavi Sol Şerit, Siyah Karakterler)
                 text = b["text"]
                 (tw, th), bl = cv2.getTextSize(text, cv2.FONT_HERSHEY_DUPLEX, f_scale * 0.95, f_thick)
                 
@@ -236,24 +202,19 @@ class FrameVisualizer:
                     b_bot = y2 + box_h + pad_y
                     cur_y = b_bot + pad_y
 
-                # Beyaz Plaka Gövdesi
                 cv2.rectangle(frame, (x1, b_top), (x1 + box_w, b_bot), (245, 245, 245), -1)
-                # Dış Siyah Çerçeve
                 cv2.rectangle(frame, (x1, b_top), (x1 + box_w, b_bot), (20, 20, 20), max(1, int(1.5 * factor)))
 
-                # Mavi Sol Şerit (EU / TR Şeridi)
                 blue_w = int(22 * factor)
                 cv2.rectangle(frame, (x1, b_top), (x1 + blue_w, b_bot), (180, 80, 20), -1)
                 cv2.putText(frame, "TR", (x1 + int(3 * factor), b_bot - int(5 * factor)),
                             cv2.FONT_HERSHEY_DUPLEX, f_scale * 0.45, (255, 255, 255), 1, cv2.LINE_AA)
 
-                # Plaka Metni (Koyu Siyah Embossed)
                 cv2.putText(frame, text, (x1 + blue_w + pad_x, b_bot - pad_y),
                             cv2.FONT_HERSHEY_DUPLEX, f_scale * 0.95, (10, 10, 10), f_thick, cv2.LINE_AA)
                 cur_y = b_top - int(4 * factor)
 
             else:
-                # Standart Siber Kapsül Rozet
                 text = b["text"]
                 (tw, th), bl = cv2.getTextSize(text, cv2.FONT_HERSHEY_DUPLEX, f_scale * 0.85, f_thick)
                 box_w = tw + pad_x * 2
@@ -266,11 +227,8 @@ class FrameVisualizer:
                     b_bot = y2 + box_h + pad_y
                     cur_y = b_bot + pad_y
 
-                # Arka Plan
                 cv2.rectangle(frame, (x1, b_top), (x1 + box_w, b_bot), b["bg_color"], -1)
-                # Çerçeve
                 cv2.rectangle(frame, (x1, b_top), (x1 + box_w, b_bot), b["border_color"], 1, cv2.LINE_AA)
-                # Metin
                 cv2.putText(frame, text, (x1 + pad_x, b_bot - pad_y),
                             cv2.FONT_HERSHEY_DUPLEX, f_scale * 0.85, b["text_color"], f_thick, cv2.LINE_AA)
                 cur_y = b_top - int(4 * factor)
@@ -282,7 +240,6 @@ class FrameVisualizer:
         fps: float,
         summary: Dict
     ):
-        """Sol üst köşede siber komuta merkezi (SOC) gösterge paneli çizer."""
         if not self.hud_enabled:
             return
 
@@ -293,30 +250,24 @@ class FrameVisualizer:
         pos_x = int(20 * factor)
         pos_y = int(20 * factor)
 
-        # 1. Şeffaf Buzlu Cam Gövde
         overlay = frame.copy()
         cv2.rectangle(overlay, (pos_x, pos_y), (pos_x + panel_w, pos_y + panel_h), (12, 10, 8), -1)
         cv2.addWeighted(overlay, 0.78, frame, 0.22, 0, frame)
 
-        # 2. Neon Siber Çerçeve ve Köşeler
         cv2.rectangle(frame, (pos_x, pos_y), (pos_x + panel_w, pos_y + panel_h), (50, 65, 85), 1)
         
-        # Üst Vurgu Çizgisi (Neon Camgöbeği)
         cv2.line(frame, (pos_x, pos_y), (pos_x + panel_w, pos_y), self.COLOR_CYAN, max(2, int(2 * factor)))
 
         f_scale = 0.50 * factor
         f_thick = max(1, int(factor))
 
-        # Canlı Durum İkonu (Yeşil parlayan nokta)
         dot_x = pos_x + int(14 * factor)
         dot_y = pos_y + int(24 * factor)
         cv2.circle(frame, (dot_x, dot_y), int(5 * factor), (50, 220, 100), -1)
 
-        # Başlık
         cv2.putText(frame, "SMART TRAFFIC PRO // TRAFIK IZLEME", (dot_x + int(12 * factor), dot_y + int(4 * factor)),
                     cv2.FONT_HERSHEY_DUPLEX, f_scale * 1.05, (255, 255, 255), max(1, int(1.4 * factor)), cv2.LINE_AA)
 
-        # Telemetri Satırları
         viol_count = summary.get("violations_count", 0)
         viol_color = self.COLOR_CRIMSON if viol_count > 0 else (180, 200, 220)
 
