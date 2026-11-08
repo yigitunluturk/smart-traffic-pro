@@ -62,10 +62,8 @@ def main():
     print(f"📹 Girdi Video: {args.input}")
     print(f"💾 Çıktı Video: {args.output}")
 
-    # Pipeline oluştur
     pipeline = TrafficPipeline(config=args.config)
 
-    # CLI argümanları ile override
     if args.speed_limit is not None:
         pipeline.speed_limit = args.speed_limit
         pipeline.speed_estimator.speed_limit = args.speed_limit
@@ -75,7 +73,6 @@ def main():
     if args.device is not None:
         pipeline.detector.device = args.device
 
-    # Video kaynağı kontrolü
     input_source = int(args.input) if args.input.isdigit() else args.input
 
     if isinstance(input_source, str) and not os.path.exists(input_source):
