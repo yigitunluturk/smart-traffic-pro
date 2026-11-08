@@ -2,6 +2,9 @@
 **SEN499 Graduation Project · 10-Minute Presentation & Q&A Roadmap**  
 **Project:** AI-Powered Traffic Surveillance: Speed Estimation & ALPR
 
+> **Note:** This document is a preparation guide. Specific benchmark numbers  
+> (mAP, MAE, FPA) will be filled in after evaluation scripts are run this semester.
+
 ---
 
 ## ⏱️ 10-Minute Presentation Timeline
@@ -9,11 +12,11 @@
 | Time | Slide / Topic | Content & Key Talking Points |
 | :--- | :--- | :--- |
 | **0:00 - 1:30** | **1. Problem & Motivation** | • Traditional traffic enforcement uses expensive dual hardware (separate Doppler radar + dedicated ANPR gate).<br>• High cost, road-cutting physical sensors, and difficulty tracking dense multi-lane traffic simultaneously.<br>• **Our Solution:** A unified, single-camera vision pipeline that tracks, estimates speed, recognizes plates, and logs violations concurrently in real-time. |
-| **1:30 - 3:00** | **2. System Architecture & 6 Use Cases** | • Layered architecture: Presentation (Streamlit/CLI), Business Logic (`src/`), and Persistence (SQLite/CSV).<br>• Highlight the 6 Use Cases: Multi-class detection, tracking, speed calculation, ALPR, violation snapshots, and database storage. |
-| **3:00 - 5:30** | **3. Core Engineering Innovations** | • **Hardware-Independent Speed:** Explain why we don't use system wall-clock time (`time.time()`). Speed uses video frame timeline $\Delta t = \frac{\Delta \text{Frames}}{\text{FPS}}$, making speed measurements 100% exact regardless of inference lag.<br>• **Candidate OCR Locking:** Eliminates OCR flickering by buffering candidates and locking the highest-confidence reading.<br>• **Auto-Resolution Scaling:** Dynamic coordinate and font scaling across 720p, 1080p, and 4K. |
-| **5:30 - 7:30** | **4. Live Demo Walkthrough** | • Launch `BASLAT_WEB_PANEL.bat` (or Streamlit).<br>• Select sample video (`part1.mp4`).<br>• Show live vehicle tracking, speed tags, plate reading, and HUD stats.<br>• Show the **Violations Gallery** with photographic evidence and the **Database Tab** with plate search. |
-| **7:30 - 9:00** | **5. AI Evaluation, Testing & CI/CD** | • Show baseline comparison: YOLO11m vs YOLOv8n (+10.2% mAP) and fast-alpr vs EasyOCR (8x faster).<br>• Present 14 automated unit/integration tests running with `pytest`.<br>• Show GitHub Actions CI pipeline running automated linting and testing on every push. |
-| **9:00 - 10:00** | **6. Conclusion & Future Work** | • Summary of engineering outcomes: High accuracy, low cost, fully containerized with Docker.<br>• Future enhancements: Fog/rain image de-weathering, night-vision infrared camera support. |
+| **1:30 - 3:00** | **2. System Architecture & Use Cases** | • Layered architecture: Presentation (Streamlit), Business Logic (`src/`), and Persistence (SQLite/CSV).<br>• Highlight the 6 Use Cases defined in the RSA document. |
+| **3:00 - 5:30** | **3. Core Engineering Innovations** | • **Hardware-Independent Speed:** Speed uses video frame timeline $\Delta t = \frac{\Delta \text{Frames}}{\text{FPS}}$, making speed measurements exact regardless of inference lag.<br>• **Turkish Plate Validation:** Temporal consensus locking with TR syntax regex filtering.<br>• **Auto-Resolution Scaling:** Dynamic coordinate and font scaling across 720p, 1080p, and 4K. |
+| **5:30 - 7:30** | **4. Live Demo Walkthrough** | • Launch Streamlit dashboard: `streamlit run app.py`.<br>• Select sample video.<br>• Show live vehicle tracking, speed tags, Turkish plate reading, and HUD stats.<br>• Show the **Violations Gallery** with photographic evidence and the **Database Tab** with plate search. |
+| **7:30 - 9:00** | **5. AI Evaluation, Testing & CI/CD** | • Show baseline comparison results from `scripts/eval_speed.py` and `scripts/eval_alpr.py`.<br>• Present automated unit/integration tests running with `pytest`.<br>• Show GitHub Actions CI pipeline running automated linting and testing on every push. |
+| **9:00 - 10:00** | **6. Conclusion & Future Work** | • Summary of engineering outcomes: Accurate speed estimation, Turkish ALPR support, fully containerized with Docker.<br>• Future enhancements: Fog/rain image de-weathering, night-vision infrared camera support. |
 
 ---
 
@@ -29,13 +32,13 @@
 
 ### Q2: "Why did you choose YOLO11m instead of older models like YOLOv5 or YOLOv8?"
 > **Answer:**  
-> "We conducted a comparative baseline study. While lightweight models like YOLOv8n are fast, they suffer from lower recall on distant or partially occluded vehicles entering lane zones. YOLO11m features optimized C3k2 blocks and SPPF modules, providing an mAP@50 of **78.4%** (+10.2% over YOLOv8n) while still achieving over 25 FPS on standard CPU and over 120 FPS on GPU."
+> "We conducted a comparative baseline study. While lightweight models like YOLOv8n are fast, they suffer from lower recall on distant or partially occluded vehicles entering lane zones. YOLO11m features optimized C3k2 blocks and SPPF modules, achieving superior detection accuracy over YOLOv8n while maintaining real-time performance on standard CPU. The exact mAP figures will be reported after our evaluation scripts run on the standardized test split this semester."
 
 ---
 
 ### Q3: "License plate OCR can misread characters due to glare or motion blur. How does your system handle this?"
 > **Answer:**  
-> "We designed a multi-frame **Temporal Candidate Accumulation & Confidence Locking** algorithm (`src/plate_recognizer.py`). Rather than accepting a single-frame read, the system buffers candidate readings as the vehicle travels through the detection zone. Once 3 valid format-matching readings are gathered, the system locks the reading with the highest statistical OCR confidence to the vehicle's persistent `track_id`. Once locked, it stays attached to the vehicle even after it leaves the OCR zone."
+> "We designed a multi-frame **Temporal Candidate Accumulation & Confidence Locking** algorithm (`src/plate_recognizer.py`). Rather than accepting a single-frame read, the system buffers candidate readings as the vehicle travels through the detection zone. Once 3 valid Turkish-format-matching readings are gathered, the system locks the reading with the highest statistical OCR confidence to the vehicle's persistent `track_id`. Once locked, it stays attached to the vehicle even after it leaves the OCR zone."
 
 ---
 
@@ -49,4 +52,4 @@
 
 ### Q5: "How does the project adhere to software engineering and testing standards?"
 > **Answer:**  
-> "The project follows a strictly modular 3-tier architecture with full separation of concerns. We have implemented 14 automated unit and integration tests covering database queries, speed mathematics, plate regex validation, and pipeline integration. All tests are integrated into our **GitHub Actions CI/CD** pipeline (`.github/workflows/ci.yml`), and the application is containerized with **Docker** and **Docker Compose** for zero-friction deployment on any operating system."
+> "The project follows a strictly modular 3-tier architecture with full separation of concerns. Automated unit and integration tests cover database queries, speed mathematics, Turkish plate regex validation, and pipeline integration. All tests are integrated into our **GitHub Actions CI/CD** pipeline (`.github/workflows/ci.yml`), and the application is containerized with **Docker** and **Docker Compose** for zero-friction deployment on any operating system."
