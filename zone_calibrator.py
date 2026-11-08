@@ -1,11 +1,3 @@
-"""
-Hız Bölgeleri ve Poligon Kalibrasyon Aracı (Interactive Zone Calibrator)
-Yeni bir kamera açısı veya video için yol şerit koordinatlarını fare ile tıklayarak belirleyin.
-
-Kullanım:
-    python zone_calibrator.py --input video.mp4
-"""
-
 import argparse
 import json
 import cv2
@@ -34,14 +26,12 @@ class ZoneCalibrator:
     def _redraw(self):
         self.display_frame = self.frame.copy()
         
-        # Tamamlanan poligonları çiz
         for idx, poly in enumerate(self.all_polygons):
             pts = np.array(poly["points"], np.int32).reshape((-1, 1, 2))
             cv2.polylines(self.display_frame, [pts], True, (0, 255, 0), 2)
             cv2.putText(self.display_frame, poly.get("name", f"Poly_{idx}"),
                         tuple(poly["points"][0]), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
 
-        # Aktif çizilen noktaları çiz
         for idx, pt in enumerate(self.points):
             cv2.circle(self.display_frame, tuple(pt), 5, (0, 0, 255), -1)
             cv2.putText(self.display_frame, str(idx + 1), (pt[0] + 5, pt[1] - 5),
@@ -51,7 +41,6 @@ class ZoneCalibrator:
             pts = np.array(self.points, np.int32).reshape((-1, 1, 2))
             cv2.polylines(self.display_frame, [pts], False, (0, 255, 255), 2)
 
-        # Yardım talimatları
         cv2.putText(self.display_frame, "Sol Tik: Nokta Ekle | Sag Tik: Geri Al | 's': Poligonu Kaydet | 'c': Temizle | 'q': Cikis",
                     (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
         cv2.imshow("Zone Calibrator", self.display_frame)
