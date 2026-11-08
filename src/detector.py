@@ -17,9 +17,6 @@ class VehicleDetection:
 
 
 class VehicleDetector:
-    """
-    YOLO ve BoT-SORT / ByteTrack tabanlı araç takip ve tespit modülü.
-    """
     def __init__(
         self,
         model_path: str = "yolo11m.pt",
@@ -49,9 +46,7 @@ class VehicleDetector:
                 self.device = "cpu"
 
     def detect_and_track(self, frame: np.ndarray) -> List[VehicleDetection]:
-        """
-        Gelen video karesinde araçları tespit eder ve ID'leri takip eder.
-        """
+        
         results = self.model.track(
             source=frame,
             persist=True,
