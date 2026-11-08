@@ -27,9 +27,7 @@ class VehicleRecord:
 
 
 class ViolationManager:
-    """
-    Araç kayıtlarını, hız ihlallerini yöneten, SQLite Veritabanı ve CSV dosyasına kaydeden modül.
-    """
+
     def __init__(
         self,
         speed_limit: int = 80,
@@ -50,7 +48,6 @@ class ViolationManager:
         self.records: Dict[int, VehicleRecord] = {}
         self.saved_snapshots: set = set()
 
-        # Dizinleri oluştur
         if self.save_csv:
             os.makedirs(os.path.dirname(self.csv_path) or ".", exist_ok=True)
         if self.save_snapshots:
@@ -72,9 +69,7 @@ class ViolationManager:
         frame_for_snapshot: Optional[np.ndarray] = None,
         vehicle_box: Optional[tuple] = None
     ) -> VehicleRecord:
-        """
-        Araç kaydını günceller, SQLite veritabanına ve bellek sözlüğüne yazar.
-        """
+
         now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         if track_id not in self.records:
@@ -111,14 +106,12 @@ class ViolationManager:
 
         rec = self.records[track_id]
 
-        # İhlal fotoğrafı kaydı
         if rec.is_speeding and track_id not in self.saved_snapshots and self.save_snapshots:
             if frame_for_snapshot is not None:
                 snap_path = self._save_violation_snapshot(rec, frame_for_snapshot, vehicle_box)
                 rec.snapshot_path = snap_path
                 self.saved_snapshots.add(track_id)
 
-        # Veritabanına kaydet
         self.db.save_or_update_vehicle(asdict(rec), session_id=self.current_session_id)
 
         return rec
