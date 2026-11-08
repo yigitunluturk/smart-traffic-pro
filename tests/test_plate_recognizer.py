@@ -10,29 +10,23 @@ def test_plate_normalization():
 
 def test_plate_validation():
     recognizer_tr = PlateRecognizer(plate_format="tr")
-    # Geçerli Türk plakaları
     assert recognizer_tr.is_valid_plate("34ABC123") is True
     assert recognizer_tr.is_valid_plate("06A1234") is True
-    # Geçersiz il kodu
     assert recognizer_tr.is_valid_plate("99ABC123") is False
-    # Çok kısa / alakasız
     assert recognizer_tr.is_valid_plate("A1") is False
 
     recognizer_all = PlateRecognizer(plate_format="all")
     assert recognizer_all.is_valid_plate("B123CD") is True
-    assert recognizer_all.is_valid_plate("ABCDE") is False  # Sayı yok
-
+    assert recognizer_all.is_valid_plate("ABCDE") is False
 
 def test_candidate_locking_mechanism():
     recognizer = PlateRecognizer(n_valid_reads=3)
     st = recognizer.track_states.setdefault(1, recognizer.track_states.get(1) or type("State", (), {"candidates": [], "locked_text": None, "locked_conf": None, "is_locked": False, "running_text": None, "last_plate_box": None})())
 
-    # Adayları simüle et
     st.candidates.append(PlateCandidate("34ABC12", 0.60))
     st.candidates.append(PlateCandidate("34ABC123", 0.94))
     st.candidates.append(PlateCandidate("34ABC123", 0.91))
 
-    # Kilit mekanizması
     if len(st.candidates) >= recognizer.n_valid_reads:
         best = max(st.candidates, key=lambda c: c.confidence)
         st.locked_text = best.text
