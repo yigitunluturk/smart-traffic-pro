@@ -282,7 +282,7 @@ def main():
     <div class="hero-container">
         <div class="hero-title-group">
             <h1>⚡ ArgusVision AI | Traffic Surveillance Center</h1>
-            <p>SEN499 Graduation Project · Real-Time Multi-Object Tracking (YOLO11), Velocity Estimation & ALPR (fast-alpr)</p>
+            <p>Real-Time Multi-Object Tracking (YOLO11), Velocity Estimation & ALPR (fast-alpr)</p>
         </div>
         <div class="live-badge">
             <span class="live-badge-dot"></span>
@@ -371,12 +371,11 @@ def main():
     # ==============================================================================
     # Navigation Tabs
     # ==============================================================================
-    tab_live, tab_db, tab_violations, tab_zones, tab_architecture = st.tabs([
+    tab_live, tab_db, tab_violations, tab_zones = st.tabs([
         "🔴 LIVE SURVEILLANCE FEED",
         "🗄️ DATABASE & VEHICLE RECORDS",
         "🚨 VIOLATION EVIDENCE GALLERY",
-        "📐 LANE CALIBRATION & POLYGONS",
-        "🏛️ SEN499 ARCHITECTURE & SPECS"
+        "📐 LANE CALIBRATION & POLYGONS"
     ])
 
     # --------------------------------------------------------------------------
@@ -612,28 +611,6 @@ def main():
             - **'s' Key:** Save active polygon.
             - **'q' Key:** Export formatted JSON coordinates ready to paste into `config/default_config.yaml`.
             """)
-
-    # --------------------------------------------------------------------------
-    # TAB 5: SEN499 Architecture & Specs
-    # --------------------------------------------------------------------------
-    with tab_architecture:
-        st.markdown("""
-        ### 🏛️ SEN499 Graduation Project Specifications & Architectural Verification
-        
-        #### Section 3.1 Compliance: 6 Core Use Cases (Fully Implemented)
-        1. **UC-1: Multi-Class Vehicle Detection & Continuous Tracking**  
-           Deep neural network inference using **YOLO11m** with **BoT-SORT** persistent ID preservation across visual occlusions.
-        2. **UC-2: Frame-Accurate Hardware-Independent Speed Estimation**  
-           Velocity computation based on fixed camera framerate intervals $\\Delta t = \\frac{\\Delta \\text{Frames}}{\\text{FPS}}$, immune to processing computer slowdown.
-        3. **UC-3: Deep Learning License Plate Recognition (ALPR)**  
-           Two-stage neural plate detection with **YOLOv9-t** and optical character recognition with Compact Convolutional Transformers (**CCT-S-v2**).
-        4. **UC-4: Multi-Frame Candidate Accumulation & Confidence Locking**  
-           Temporal candidate buffer collecting $N$ valid plate reads and locking the highest statistical confidence to eliminate frame jitter.
-        5. **UC-5: Speeding Enforcement & High-Resolution Evidence Capture**  
-           Automated threshold comparator saving annotated photographic evidence snapshots into `output/ihlaller/`.
-        6. **UC-6: Persistent Relational Storage & Analytical Reporting**  
-           ACID-compliant **SQLite3** relational persistence with indexed queries, CSV export, and Streamlit telemetry.
-        """)
 
 
 if __name__ == "__main__":
