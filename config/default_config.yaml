@@ -1,27 +1,20 @@
-# ==============================================================================
-# Traffic Speed & License Plate Recognition (SEN499 Graduation Project)
-# System Configuration File
-# ==============================================================================
-
 project:
   name: "Automated Traffic Surveillance: Real-Time Speed & ALPR System"
   version: "1.0.0"
   course: "SEN499 Graduation Project"
   academic_year: "2026-2027"
 
-# Deep Learning Model & Tracking Settings
 model:
-  vehicle_model: "yolo11m.pt"        # YOLO11m, yolo11s.pt, yolo11n.pt, yolov8n.pt
-  vehicle_classes: [2, 3, 5, 7]      # COCO: 2:car, 3:motorcycle, 5:bus, 7:truck
-  vehicle_conf: 0.40                 # Detection confidence threshold
-  tracker: "botsort.yaml"            # botsort.yaml or bytetrack.yaml
-  device: "cpu"                      # "cpu", "cuda", "0"
+  vehicle_model: "yolo11m.pt"       
+  vehicle_classes: [2, 3, 5, 7]     
+  vehicle_conf: 0.40                
+  tracker: "botsort.yaml"            
+  device: "cpu"                      
 
-# Speed Estimation & Calibration Settings
 speed:
-  speed_limit: 80                    # km/h threshold for speeding violation
-  base_resolution: [1280, 720]       # Base calibration reference resolution
-  default_real_distance_m: 9.144     # Real distance between dashed road lines (meters)
+  speed_limit: 80                    
+  base_resolution: [1280, 720]      
+  default_real_distance_m: 9.144     
   zones:
     - name: "Right_Lane"
       direction: "upward"
@@ -41,17 +34,15 @@ speed:
       color_entry: [0, 255, 255]
       color_exit: [0, 0, 255]
 
-# Automatic License Plate Recognition (ALPR) Settings
 plate:
   detector_model: "yolo-v9-t-384-license-plate-end2end"
   ocr_model: "cct-s-v2-global-model"
-  zone_top_ratio: 0.40               # OCR band start ratio from top
-  zone_bottom_ratio: 0.95            # OCR band end ratio
-  min_ocr_conf: 0.40                 # Minimum valid character recognition confidence
-  n_valid_reads: 3                   # Stable read lock threshold
-  plate_format: "all"                # "all", "tr", "eu"
+  zone_top_ratio: 0.40               
+  zone_bottom_ratio: 0.95           
+  min_ocr_conf: 0.40                 
+  n_valid_reads: 3                  
+  plate_format: "all"                
 
-# Persistent Storage & Output Settings
 output:
   database_path: "output/traffic_surveillance.db"
   save_csv: true
