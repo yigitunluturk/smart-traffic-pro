@@ -1,7 +1,7 @@
 services:
-  traffic-surveillance:
+  smart-traffic-pro:
     build: .
-    container_name: traffic_ai_surveillance
+    container_name: smart_traffic_pro
     ports:
       - "8501:8501"
     volumes:
