@@ -1,21 +1,45 @@
+# ==============================================================================
+# Traffic Speed & License Plate Recognition (SEN499 Graduation Project)
+# System Configuration File
+# ==============================================================================
+
 project:
-  name: "Automated Traffic Surveillance: Real-Time Speed & ALPR System"
-  version: "1.0.0"
+  name: "SMART TRAFFIC PRO: AI-Powered Real-Time Speed & ALPR System"
+  version: "1.1.0"
   course: "SEN499 Graduation Project"
   academic_year: "2026-2027"
 
 model:
   vehicle_model: "yolo11m.pt"       
-  vehicle_classes: [2, 3, 5, 7]     
-  vehicle_conf: 0.40                
-  tracker: "botsort.yaml"            
-  device: "cpu"                      
+  vehicle_classes: [2, 3, 5, 7]   
+  vehicle_conf: 0.40           
+  tracker: "botsort.yaml"        
+  device: "cpu"                 
+  imgsz: 640                       
+  frame_stride: 1                   
 
 speed:
-  speed_limit: 80                    
-  base_resolution: [1280, 720]      
-  default_real_distance_m: 9.144     
-  zones:
+  speed_limit: 80                
+  base_resolution: [1280, 720]     
+
+
+  method: "auto"
+  calibration_dir: "calibrations"
+  corridor_real_distance_m: 24.0
+
+  measurement:
+    min_track_time_s: 0.6           
+    min_track_distance_m: 5.0      
+    lock_time_s: 1.2                 
+    lock_distance_m: 25.0          
+  track_lost_after_s: 0.7           
+
+  stabilization:
+    enabled: true                  
+    work_width: 640
+    every_n_frames: 3                
+
+  zones:                            
     - name: "Right_Lane"
       direction: "upward"
       entry_polygon: [[700, 575], [1100, 575], [1100, 560], [700, 560]]
@@ -37,11 +61,15 @@ speed:
 plate:
   detector_model: "yolo-v9-t-384-license-plate-end2end"
   ocr_model: "cct-s-v2-global-model"
-  zone_top_ratio: 0.40               
-  zone_bottom_ratio: 0.95           
-  min_ocr_conf: 0.40                 
-  n_valid_reads: 3                  
-  plate_format: "all"                
+  zone_top_ratio: 0.40       
+  zone_bottom_ratio: 0.95            
+  min_ocr_conf: 0.40                
+  n_valid_reads: 3                 
+  max_reads: 15                      
+  sample_every: 2                   
+  max_ocr_per_frame: 4            
+  min_vehicle_width_ratio: 0.03     
+  plate_format: "tr"               
 
 output:
   database_path: "output/traffic_surveillance.db"
@@ -53,3 +81,7 @@ output:
   output_video_path: "output/output_combined.mp4"
   show_window: false
   hud_stats: true
+
+privacy:
+  blur_non_violators: true         
+  retention_days: 30                
