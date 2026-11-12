@@ -6,20 +6,18 @@ ENV PYTHONUNBUFFERED=1
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
     libgl1 \
     libglib2.0-0 \
     ffmpeg \
-    curl \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt && \
-    pip install --no-cache-dir pytest pytest-cov
+    pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
 EXPOSE 8501
 
+# Official UI (RSA 1.3-4): Streamlit dashboard, CPU-only inference (NFR-4)
 CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
