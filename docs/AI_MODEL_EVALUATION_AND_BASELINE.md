@@ -1,59 +1,45 @@
-# AI Model Evaluation Plan & Baseline Comparison
-**SEN499 Graduation Project · Section 3.3 Artificial Intelligence Compliance**  
-**Project:** SMART TRAFFIC PRO — Speed Estimation & ALPR
+# AI Model Evaluation Protocol and Baselines
 
-> **Status note:** The repository at the `v0-baseline` tag uses the stock pre-trained
-> `yolo11m.pt` and standard FastALPR. **This document contains no measured results.**
-> All numbers below are *targets* taken from the RSA document. Results will be added
-> only after `scripts/eval_speed.py`, `scripts/eval_alpr.py` and the detector
-> evaluation have been run on the datasets described here.
+This document describes **how** the models are evaluated. It deliberately contains **no result numbers**.
+Results are reported only after the scripts in `scripts/` have produced them (RSA §1.3, item 3). The
+generated files are in `output/eval/*.json` and are shown on dashboard screen S5.
 
----
+## 1. Vehicle detection (FR-03)
 
-## 1. Baseline Comparison (as in the RSA, Section 4)
+| | Baseline(s) | Proposed |
+|---|---|---|
+| Model | stock pre-trained `yolo11m.pt` (v0); stock `yolov8n.pt` (lightweight reference) | YOLO11m fine-tuned on UA-DETRAC (`models/yolo11m_uadetrac.pt`) |
+| Data | UA-DETRAC test split (see `docs/DATASETS.md`) | same |
+| Metric | mAP@50 and mAP@50-95 on vehicle classes (car, bus, truck) | target: +8 points mAP@50 over stock YOLO11m |
+| Command | `python scripts/eval_detector.py --data data/ua_detrac/ua_detrac.yaml` | |
 
-| Task | Baseline(s) | Proposed | Metric / target |
-| :--- | :--- | :--- | :--- |
-| Vehicle detection | Stock pre-trained YOLO11m (`v0-baseline`); stock YOLOv8n as a lightweight reference | YOLO11m fine-tuned on UA-DETRAC | mAP@50 on the held-out UA-DETRAC test split; target **+8 points** over stock YOLO11m |
-| Plate recognition | (a) EasyOCR on plate crops; (b) FastALPR single frame | FastALPR + temporal consensus buffer + Turkish syntax validation | Full plate accuracy (FPA) on the Turkish test set; target **FPA ≥ 90%** |
-| Speed estimation | Naive pixel-displacement speed (no perspective calibration) | Perspective calibration with d_real (`v0-baseline`) | MAE on BrnoCompSpeed; target **≤ 2.0 km/h** |
+Training: `scripts/train_detector.py` (Google Colab GPU, `seed=0`, `deterministic=True`). Inference stays on CPU.
 
----
+## 2. Plate recognition (FR-04, NFR-2)
 
-## 2. Datasets
+| Method | Description | Command |
+|---|---|---|
+| (a) EasyOCR | EasyOCR on the plate crop | `scripts/eval_alpr.py --method easyocr` |
+| (b) FastALPR single frame | raw FastALPR output, no validation | `--method single` |
+| Proposed | FastALPR + Turkish syntax validation/correction + temporal voting across frames | `--method proposed` |
 
-- **UA-DETRAC** — detector fine-tuning (GPU on Google Colab) and detection evaluation.
-  A fixed train/validation/test split is stored in the dataset configuration file.
-- **BrnoCompSpeed** — speed evaluation against laser-gate ground-truth speeds.
-- **Turkish plate test set** — plate recognition evaluation. Source, size, license and
-  KVKK handling are defined in the updated RSA document. Plate images are personal data
-  and are **not** committed to this repository.
-- **UFPR-ALPR is not used**: it contains Brazilian plates, which differ from the Turkish format.
+Metrics: full-plate accuracy (FPA, all characters correct), character recognition accuracy (CRA,
+Levenshtein-based), misread rate (wrong non-empty output), reject rate (no output). Target: FPA ≥ 90 %.
+The misread rate of (b) is measured first and then compared with the proposed pipeline.
 
----
+## 3. Speed estimation (NFR-1)
 
-## 3. Target Plate Format (Turkey)
+| Method | Description | Command |
+|---|---|---|
+| Baseline | naive pixel displacement inside a band, no perspective calibration (`corridor`) | `scripts/eval_speed.py --brno <dir> --method corridor` |
+| Proposed | road-plane homography from calibration + camera-drift compensation + Theil–Sen fit over ≥ 0.6 s | `--method homography` |
 
-Province code `01`–`81`, one to three letters (Q, W, X not used) and two to four digits,
-e.g. `34 ABC 123`. Invalid OCR candidates are flagged as low confidence and can be
-corrected manually in the Streamlit dashboard (FR-09).
+Data: BrnoCompSpeed. The dataset's own calibration (two vanishing points + scale) is converted
+automatically into the road-plane homography. Vehicles are matched to ground truth by passing time
+(±1 s). Metrics: MAE, RMSE, median absolute error, mean relative error, recall of matched vehicles. Target MAE ≤ 2.0 km/h.
+As the advisor noted, this target is ambitious; measured values are reported as they are.
 
----
+## 4. Throughput (NFR-3)
 
-## 4. Metrics
-
-- **mAP@50** — standard Ultralytics validation on the UA-DETRAC test split.
-- **Full plate accuracy (FPA)** — share of test plates where every character is correct.
-- **Speed MAE**
-
-```math
-\text{MAE} = \frac{1}{N} \sum_{i=1}^{N} \left| v_{\text{estimated}, i} - v_{\text{ground-truth}, i} \right|
-```
-
-- **Throughput** — dashboard FPS counter on a 1080p input at `imgsz=640` (target ≥ 10 FPS on CPU, NFR-3).
-
----
-
-## 5. Results
-
-*To be filled in only with numbers produced by the scripts above.*
+`scripts/benchmark_fps.py --video <1080p video> --stride N` measures pipeline FPS on CPU at `imgsz=640`
+and records the CPU model and core count.
