@@ -3,12 +3,11 @@ from typing import List, Optional, Tuple, Dict
 import numpy as np
 from ultralytics import YOLO
 
-
 @dataclass
 class VehicleDetection:
     track_id: int
-    box: Tuple[int, int, int, int]  # (x1, y1, x2, y2)
-    center: Tuple[int, int]         # (cx, cy)
+    box: Tuple[int, int, int, int] 
+    center: Tuple[int, int]        
     width: int
     height: int
     confidence: float
@@ -17,22 +16,29 @@ class VehicleDetection:
 
 
 class VehicleDetector:
+
     def __init__(
         self,
         model_path: str = "yolo11m.pt",
         classes: Optional[List[int]] = None,
         conf_threshold: float = 0.40,
         tracker: str = "botsort.yaml",
-        device: str = "cpu"
+        device: str = "cpu",
+        imgsz: Optional[int] = None,
+        half: bool = True
     ):
         self.model_path = model_path
         self.classes = classes if classes is not None else [2, 3, 5, 7]
         self.conf_threshold = conf_threshold
         self.tracker = tracker
         self.device = device
+        self.imgsz = imgsz         
+        self.half = half
         self.model = YOLO(model_path)
 
         import torch
+        if str(self.device).lower() == "auto":
+            self.device = "cuda" if torch.cuda.is_available() else "cpu"
         if self.device == "cuda":
             if torch.cuda.is_available():
                 gpu_name = torch.cuda.get_device_name(0)
@@ -44,18 +50,25 @@ class VehicleDetector:
             else:
                 print("⚠️ [VehicleDetector] CUDA bulunamadı, CPU kullanılıyor.")
                 self.device = "cpu"
+        if self.device == "cpu":
+            self.half = False  
 
     def detect_and_track(self, frame: np.ndarray) -> List[VehicleDetection]:
-        
-        results = self.model.track(
+
+        kwargs = dict(
             source=frame,
             persist=True,
             classes=self.classes,
             conf=self.conf_threshold,
             tracker=self.tracker,
             device=self.device,
-            verbose=False
-        )[0]
+            verbose=False,
+        )
+        if self.half:
+            kwargs["half"] = True
+        if self.imgsz:
+            kwargs["imgsz"] = int(self.imgsz)
+        results = self.model.track(**kwargs)[0]
 
         detections: List[VehicleDetection] = []
         if results.boxes is None or results.boxes.id is None:
@@ -68,11 +81,15 @@ class VehicleDetector:
 
         for box, tid, conf, cls_id in zip(boxes_xyxy, track_ids, confs, classes):
             x1, y1, x2, y2 = map(int, box)
+            fh, fw = frame.shape[:2]
+            x1, y1 = max(0, x1), max(0, y1)
+            x2, y2 = min(fw - 1, x2), min(fh - 1, y2)
             w = max(1, x2 - x1)
             h = max(1, y2 - y1)
             cx = (x1 + x2) // 2
             cy = (y1 + y2) // 2
-            cls_name = self.model.names.get(cls_id, f"vehicle_{cls_id}")
+            names = self.model.names
+            cls_name = names.get(cls_id, f"vehicle_{cls_id}") if isinstance(names, dict) else names[cls_id]
 
             detections.append(
                 VehicleDetection(
