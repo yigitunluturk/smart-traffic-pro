@@ -1,13 +1,25 @@
+# Core (CPU inference — NFR-4)
 ultralytics>=8.3.0
 opencv-python>=4.8.0
 fast-alpr>=0.1.0
+onnxruntime>=1.16.0
 numpy>=1.24.0
 pyyaml>=6.0
 pandas>=2.0.0
+tqdm>=4.66.0
+
+# User interface (single official UI: Streamlit)
 streamlit>=1.30.0
 pillow>=10.0.0
-onnxruntime>=1.16.0
-pytest>=8.0.0
-pytest-cov>=5.0.0
+
+# Reports
 reportlab>=4.0.0
 imageio-ffmpeg>=0.5.0
+
+# Tests
+pytest>=8.0.0
+pytest-cov>=5.0.0
+
+# Optional:
+#   flask, flask-cors  -> only for legacy/server.py (unsupported)
+#   easyocr            -> only for the EasyOCR baseline in scripts/eval_alpr.py
