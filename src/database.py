@@ -5,7 +5,7 @@ from datetime import datetime
 
 
 class TrafficDatabase:
-    
+
     def __init__(self, db_path: str = "output/traffic_surveillance.db"):
         self.db_path = db_path
         os.makedirs(os.path.dirname(self.db_path) or ".", exist_ok=True)
@@ -63,7 +63,24 @@ class TrafficDatabase:
             )
             """)
 
+            cursor.execute("""
+            CREATE TABLE IF NOT EXISTS plate_corrections (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                record_id INTEGER NOT NULL,
+                old_plate TEXT,
+                new_plate TEXT NOT NULL,
+                corrected_at TEXT NOT NULL,
+                FOREIGN KEY (record_id) REFERENCES vehicle_records(id)
+            )
+            """)
+            cursor.execute("PRAGMA table_info(vehicle_records)")
+            cols = {r[1] for r in cursor.fetchall()}
+            for col, typ in (("plate_candidate", "TEXT"), ("plate_status", "TEXT")):
+                if col not in cols:
+                    cursor.execute(f"ALTER TABLE vehicle_records ADD COLUMN {col} {typ}")
+
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_plate ON vehicle_records(plate_text)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_timestamp ON vehicle_records(timestamp)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_speeding ON vehicle_records(is_speeding)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_track ON vehicle_records(track_id)")
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_watchlist_plate ON watchlist(plate_text)")
@@ -126,7 +143,9 @@ class TrafficDatabase:
                     lane_name = ?,
                     elapsed_time_sec = ?,
                     last_seen_frame = ?,
-                    snapshot_path = COALESCE(?, snapshot_path)
+                    snapshot_path = COALESCE(?, snapshot_path),
+                    plate_candidate = ?,
+                    plate_status = CASE WHEN plate_status = 'corrected' THEN plate_status ELSE ? END
                 WHERE id = ?
                 """, (
                     record_dict.get("class_name", "vehicle"),
@@ -138,6 +157,8 @@ class TrafficDatabase:
                     record_dict.get("elapsed_time_sec"),
                     record_dict.get("last_seen_frame"),
                     record_dict.get("snapshot_path"),
+                    record_dict.get("plate_candidate"),
+                    record_dict.get("plate_status"),
                     row["id"]
                 ))
             else:
@@ -146,8 +167,8 @@ class TrafficDatabase:
                     session_id, track_id, class_name, speed_kmh, speed_limit,
                     is_speeding, plate_text, plate_confidence, lane_name,
                     elapsed_time_sec, first_seen_frame, last_seen_frame,
-                    timestamp, snapshot_path
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    timestamp, snapshot_path, plate_candidate, plate_status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     session_id,
                     track_id,
@@ -162,7 +183,9 @@ class TrafficDatabase:
                     record_dict.get("first_seen_frame", 1),
                     record_dict.get("last_seen_frame", 1),
                     record_dict.get("timestamp", datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
-                    record_dict.get("snapshot_path")
+                    record_dict.get("snapshot_path"),
+                    record_dict.get("plate_candidate"),
+                    record_dict.get("plate_status")
                 ))
             conn.commit()
         finally:
@@ -271,6 +294,7 @@ class TrafficDatabase:
             conn.close()
 
     def remove_from_watchlist(self, item_id: int) -> bool:
+        """Kara listeden kayıt siler."""
         conn = self._get_connection()
         try:
             cursor = conn.cursor()
@@ -365,6 +389,7 @@ class TrafficDatabase:
             conn.close()
 
     def clear_records(self) -> bool:
+        """Tüm araç ve ihlal kayıtlarını veritabanından temizler."""
         conn = self._get_connection()
         try:
             cursor = conn.cursor()
@@ -377,3 +402,123 @@ class TrafficDatabase:
             return False
         finally:
             conn.close()
+
+    # ------------------------------------------------------------------
+    # FR-08: Arama / filtreleme
+    # ------------------------------------------------------------------
+    def query_records(
+        self,
+        date_from: Optional[str] = None,
+        date_to: Optional[str] = None,
+        plate_query: Optional[str] = None,
+        lane: Optional[str] = None,
+        violations_only: bool = False,
+        limit: int = 5000,
+    ) -> List[Dict[str, Any]]:
+        """Tarih aralığı (YYYY-MM-DD), plaka alt dizesi ve şeride göre kayıt arar."""
+        sql = "SELECT * FROM vehicle_records WHERE 1=1"
+        args: List[Any] = []
+        if date_from:
+            sql += " AND timestamp >= ?"
+            args.append(f"{date_from} 00:00:00")
+        if date_to:
+            sql += " AND timestamp <= ?"
+            args.append(f"{date_to} 23:59:59")
+        if plate_query:
+            q = plate_query.strip().upper().replace(" ", "")
+            sql += " AND (plate_text LIKE ? OR plate_candidate LIKE ?)"
+            args += [f"%{q}%", f"%{q}%"]
+        if lane:
+            sql += " AND lane_name = ?"
+            args.append(lane)
+        if violations_only:
+            sql += " AND is_speeding = 1"
+        sql += " ORDER BY id DESC LIMIT ?"
+        args.append(int(limit))
+        conn = self._get_connection()
+        try:
+            cur = conn.cursor()
+            cur.execute(sql, args)
+            return [dict(r) for r in cur.fetchall()]
+        finally:
+            conn.close()
+
+    def get_lanes(self) -> List[str]:
+        conn = self._get_connection()
+        try:
+            cur = conn.cursor()
+            cur.execute("SELECT DISTINCT lane_name FROM vehicle_records WHERE lane_name IS NOT NULL ORDER BY lane_name")
+            return [r[0] for r in cur.fetchall()]
+        finally:
+            conn.close()
+
+    # ------------------------------------------------------------------
+    # FR-09: Doğrulamalı plaka düzeltme + denetim kaydı
+    # ------------------------------------------------------------------
+    def correct_plate(self, record_id: int, new_plate: str, validator=None):
+
+        norm = "".join(ch for ch in (new_plate or "").upper() if ch.isalnum())
+        if not norm:
+            return False, "Plaka boş olamaz."
+        if validator is not None and not validator(norm):
+            return False, f"'{norm}' Türk plaka formatına uymuyor (il kodu 01-81, 1-3 harf, 2-4 rakam; Q/W/X yok)."
+        conn = self._get_connection()
+        try:
+            cur = conn.cursor()
+            cur.execute("SELECT plate_text, plate_candidate FROM vehicle_records WHERE id = ?", (record_id,))
+            row = cur.fetchone()
+            if row is None:
+                return False, "Kayıt bulunamadı."
+            old = row["plate_text"] or row["plate_candidate"]
+            cur.execute(
+                "UPDATE vehicle_records SET plate_text = ?, plate_status = 'corrected' WHERE id = ?",
+                (norm, record_id),
+            )
+            cur.execute(
+                "INSERT INTO plate_corrections (record_id, old_plate, new_plate, corrected_at) VALUES (?, ?, ?, ?)",
+                (record_id, old, norm, datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
+            )
+            conn.commit()
+            return True, f"Plaka güncellendi: {old or '-'} → {norm}"
+        finally:
+            conn.close()
+
+    def get_corrections(self, record_id: Optional[int] = None) -> List[Dict[str, Any]]:
+        conn = self._get_connection()
+        try:
+            cur = conn.cursor()
+            if record_id is None:
+                cur.execute("SELECT * FROM plate_corrections ORDER BY id DESC")
+            else:
+                cur.execute("SELECT * FROM plate_corrections WHERE record_id = ? ORDER BY id DESC", (record_id,))
+            return [dict(r) for r in cur.fetchall()]
+        finally:
+            conn.close()
+
+    # ------------------------------------------------------------------
+    # FR-07 / NFR-5: Saklama politikası (KVKK)
+    # ------------------------------------------------------------------
+    def apply_retention(self, days: int = 30, now: Optional[datetime] = None) -> int:
+        """
+        İhlal yapmayan geçişlerin plaka metnini, saklama süresi dolunca siler.
+        İhlal kayıtları (kanıt) korunur. Silinen kayıt sayısını döner.
+        """
+        from datetime import timedelta
+        now = now or datetime.now()
+        cutoff = (now - timedelta(days=int(days))).strftime("%Y-%m-%d %H:%M:%S")
+        conn = self._get_connection()
+        try:
+            cur = conn.cursor()
+            cur.execute(
+                """UPDATE vehicle_records
+                   SET plate_text = NULL, plate_candidate = NULL, plate_confidence = NULL,
+                       plate_status = 'purged'
+                   WHERE is_speeding = 0 AND timestamp < ?
+                     AND (plate_text IS NOT NULL OR plate_candidate IS NOT NULL)""",
+                (cutoff,),
+            )
+            conn.commit()
+            return cur.rowcount
+        finally:
+            conn.close()
+
