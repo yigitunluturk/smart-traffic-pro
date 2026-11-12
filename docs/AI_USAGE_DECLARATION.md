@@ -1,6 +1,6 @@
 # Artificial Intelligence Tool Usage Declaration
 **SEN499 Graduation Project · Section 8 Academic Integrity Compliance**  
-**Student Name:** *[Insert Your Name]* &nbsp;|&nbsp; **Student ID:** *[Insert Your Student ID]*  
+**Student Name:** *Yiğit ÜNLÜTÜRK* &nbsp;|&nbsp; **Student ID:** *210129060*  
 **Academic Year:** 2026–2027 Fall Semester
 
 ---
@@ -30,5 +30,3 @@ While pre-trained neural networks and AI coding assistants were leveraged for ef
 4. **End-to-End System Pipeline Integration:** Harmonious multi-threaded architectural coordination connecting detection, tracking, speed, ALPR, SQLite persistence, and UI.
 
 ---
-
-**Student Signature:** \_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_\_ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; **Date:** \_\_\_ / \_\_\_ / 2026
