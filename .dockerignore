@@ -1,0 +1,17 @@
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+.git
+.gitignore
+.env
+output/ihlaller/*.jpg
+output/*.mp4
+output/*.csv
+plate/
+speed/
+
+output/
+_yedek_orijinal_*/
+legacy/
