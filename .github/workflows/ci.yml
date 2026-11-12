@@ -1,4 +1,4 @@
-name: CI - SEN499 Automated Test & Quality Pipeline
+name: CI
 
 on:
   push:
@@ -8,12 +8,11 @@ on:
 
 jobs:
   test:
-    name: Run Unit & Integration Tests
+    name: Tests (CPU only)
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Set up Python 3.11
         uses: actions/setup-python@v5
@@ -21,28 +20,26 @@ jobs:
           python-version: "3.11"
           cache: "pip"
 
-      - name: Install System Dependencies (OpenCV & GL)
+      - name: System dependencies (OpenCV)
         run: |
           sudo apt-get update
           sudo apt-get install -y libgl1 libglib2.0-0 ffmpeg
 
-      - name: Install Python Dependencies
+      - name: Python dependencies (CPU torch)
         run: |
           python -m pip install --upgrade pip
+          pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
           pip install -r requirements.txt
-          pip install pytest pytest-cov flake8
+          pip install flake8
 
-      - name: Code Quality & Linting (PEP8)
-        run: |
-          # Stop the build if there are Python syntax errors or undefined names
-          flake8 src/ --count --select=E9,F63,F7,F82 --show-source --statistics
-          # Exit-zero treats all errors as warnings
-          flake8 src/ --count --exit-zero --max-complexity=15 --max-line-length=127 --statistics
+      - name: Lint (syntax errors / undefined names)
+        run: flake8 src/ scripts/ app.py main.py --count --select=E9,F63,F7,F82 --show-source --statistics
 
-      - name: Run Test Suite with Pytest & Coverage
-        run: |
-          pytest tests/ -v --cov=src --cov-report=term --cov-report=xml -p no:cacheprovider
+      - name: Tests + coverage
+        run: pytest tests/ -v --cov=src --cov-report=term-missing --cov-report=xml -p no:cacheprovider
 
-      - name: Verify Quality Gate (>60% Coverage Target)
-        run: |
-          echo "CI Quality Pipeline Passed Successfully!"
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: coverage.xml
