@@ -108,7 +108,7 @@ which is shown on screen S5. No result is claimed before the scripts have run.
 
 Datasets, licences and KVKK handling are described in [docs/DATASETS.md](docs/DATASETS.md).
 
-Project documents: [Updated RSA](docs/RSA_UPDATED.pdf) · [Architecture and Design Draft](docs/ARCHITECTURE_AND_DESIGN_DRAFT.pdf) · [AI usage declaration](docs/AI_USAGE_DECLARATION.md).
+Project documents: [Updated RSA](docs/RSA_UPDATED.pdf) · [Architecture and Design Draft](docs/ARCHITECTURE_AND_DESIGN_DRAFT.pdf).
 
 ## Tests
 
@@ -129,6 +129,6 @@ config/               default_config.yaml, calibrations/<video>.json
 src/                  business logic + data access
 scripts/              evaluation, dataset preparation, training
 tests/                unit and integration tests
-docs/                 project documents (RSA, design draft; docs/archive = superseded drafts)
+docs/                 project documents (datasets, evaluation protocol, RSA and design draft)
 legacy/               v0 Flask web panel — unsupported, kept for reference only
 ```
