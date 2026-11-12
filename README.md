@@ -1,59 +1,7 @@
-# 🚗 SMART TRAFFIC PRO
+# Legacy web panel (UNSUPPORTED)
 
-[![Python Version](https://img.shields.io/badge/Python-3.11%20%7C%203.12%20%7C%203.14-blue.svg)](https://www.python.org/)
-[![Framework](https://img.shields.io/badge/Ultralytics-YOLO11m-orange.svg)](https://docs.ultralytics.com/)
-[![OCR Engine](https://img.shields.io/badge/fast--alpr-ONNX%20Runtime-green.svg)](https://github.com/ankandrew/fast-alpr)
-[![Testing](https://img.shields.io/badge/Tests-18%20(Pytest)-brightgreen.svg)](tests/)
-[![Docker](https://img.shields.io/badge/Docker-Supported-blue.svg)](Dockerfile)
+This Flask + HTML panel was part of the v0 prototype. As stated in the RSA (Section 1.3, item 4),
+the **Streamlit dashboard (`app.py`) is the only official user interface**. This folder is kept only
+for reference and is not tested or maintained.
 
-**SEN499 Graduation Project (2026–2027 Fall Semester)**  
-An end-to-end intelligent transportation and surveillance system that concurrently performs multi-class vehicle detection, persistent trajectory tracking, high-precision timeline-based speed estimation, automated license plate recognition (ALPR), and speeding violation enforcement with automated photographic evidence capture.
-
----
-
-## 🏛️ System Architecture
-
-```text
-┌────────────────────────────────────────────────────────┐
-│              Presentation Layer (UI / CLI)             │
-│        Streamlit Dashboard (app.py) | CLI (main.py)    │
-└──────────────────────────┬─────────────────────────────┘
-                           │
-┌──────────────────────────▼─────────────────────────────┐
-│                 Pipeline Orchestration                 │
-│                 TrafficPipeline (src/)                 │
-└───────┬──────────────┬──────────────┬───────────┬──────┘
-        │              │              │           │
-┌───────▼──────┐┌──────▼──────┐┌──────▼─────┐┌────▼──────┐
-│   Detector   ││    Speed    ││   Plate    ││Violation  │
-│   (YOLO11)   ││  Estimator  ││ Recognizer ││  Manager  │
-└──────────────┘└─────────────┘└────────────┘└────┬──────┘
-                                                  │
-┌─────────────────────────────────────────────────▼──────┐
-│            Data Persistence Layer (SQLite & CSV)       │
-│     TrafficDatabase (output/traffic_surveillance.db)   │
-└────────────────────────────────────────────────────────┘
-```
-
----
-
-## ▶️ Running
-
-The **Streamlit dashboard (`app.py`) is the only user interface.**
-
-```bash
-pip install -r requirements.txt
-streamlit run app.py
-```
-
-With Docker:
-
-```bash
-docker compose up --build
-# then open http://localhost:8501
-```
-
-## 📁 Project Status
-
-- `v0-baseline` (Git tag) marks the prototype that existed before this semester. Only work after this tag is evaluated.
-- Evaluation scripts will be added this semester. **No accuracy results are reported until these scripts have produced them.**
+Run (not supported): `python legacy/server.py` from the project root.
