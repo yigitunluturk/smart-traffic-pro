@@ -8,8 +8,35 @@ from .plate_recognizer import PlateDetectionResult
 from .detector import VehicleDetection
 
 
+_TR_MAP = str.maketrans("ÇĞİÖŞÜçğıöşü", "CGIOSUcgiosu")
+
+
+def _ascii(text) -> str:
+    t = str(text).replace("🔒", "[KILIT]").replace("⚡", "").translate(_TR_MAP)
+    return "".join(ch for ch in t if ord(ch) < 128).strip()
+
+
+def _put_text(img, text, *args, **kwargs):
+    return cv2.putText(img, _ascii(text), *args, **kwargs)
+
+
+def _blend_rect(frame, x1, y1, x2, y2, color, alpha):
+    h, w = frame.shape[:2]
+    x1, y1, x2, y2 = max(0, int(x1)), max(0, int(y1)), min(w, int(x2)), min(h, int(y2))
+    if x2 <= x1 or y2 <= y1:
+        return
+    roi = frame[y1:y2, x1:x2]
+    color_img = np.empty_like(roi)
+    color_img[:] = color
+    cv2.addWeighted(color_img, alpha, roi, 1 - alpha, 0, roi)
+
+
+def _text_size(text, *args, **kwargs):
+    return cv2.getTextSize(_ascii(text), *args, **kwargs)
+
 
 class FrameVisualizer:
+
     def __init__(
         self,
         hud_enabled: bool = True,
@@ -55,7 +82,7 @@ class FrameVisualizer:
                 
                 pt = tuple(z.entry_polygon[0][0])
                 label = f"▼ {z.name} [GİRİŞ]" if z.direction == "downward" else f"▲ {z.name} [GİRİŞ]"
-                cv2.putText(frame, label, (pt[0], max(24, pt[1] - int(10 * factor))),
+                _put_text(frame, label, (pt[0], max(24, pt[1] - int(10 * factor))),
                             cv2.FONT_HERSHEY_DUPLEX, f_scale * 0.85, z.color_entry, f_thick, cv2.LINE_AA)
 
             if len(z.exit_polygon) > 0:
@@ -70,20 +97,18 @@ class FrameVisualizer:
         y_bottom = int(h * bottom_ratio)
         f_scale, b_thick, f_thick = self._get_scale(h)
 
-        overlay = frame.copy()
-        cv2.rectangle(overlay, (0, y_top), (w, y_bottom), self.COLOR_PURPLE, -1)
-        cv2.addWeighted(overlay, 0.04, frame, 0.96, 0, frame)
+        _blend_rect(frame, 0, y_top, w, y_bottom, self.COLOR_PURPLE, 0.04)
 
         thick = max(2, int(2 * (h / 1080.0)))
         cv2.line(frame, (0, y_top), (w, y_top), self.COLOR_PURPLE, thick, cv2.LINE_AA)
         cv2.line(frame, (0, y_bottom), (w, y_bottom), self.COLOR_PURPLE, thick, cv2.LINE_AA)
 
         badge_text = "⚡ HIZ VE PLAKA TESPİT BÖLGESİ"
-        (tw, th), _ = cv2.getTextSize(badge_text, cv2.FONT_HERSHEY_DUPLEX, f_scale * 0.7, 1)
+        (tw, th), _ = _text_size(badge_text, cv2.FONT_HERSHEY_DUPLEX, f_scale * 0.7, 1)
         pad = int(8 * (h / 1080.0))
         cv2.rectangle(frame, (20, y_top - th - pad * 2), (20 + tw + pad * 2, y_top), self.COLOR_DARK_SLATE, -1)
         cv2.rectangle(frame, (20, y_top - th - pad * 2), (20 + tw + pad * 2, y_top), self.COLOR_PURPLE, 1)
-        cv2.putText(frame, badge_text, (20 + pad, y_top - pad),
+        _put_text(frame, badge_text, (20 + pad, y_top - pad),
                     cv2.FONT_HERSHEY_DUPLEX, f_scale * 0.7, self.COLOR_PURPLE, 1, cv2.LINE_AA)
 
     def draw_vehicle(
@@ -102,6 +127,10 @@ class FrameVisualizer:
         is_viol = speed_info.is_speeding
         main_color = self.COLOR_CRIMSON if is_viol else self.COLOR_EMERALD
 
+        if (x2 - x1) < 0.035 * w and not is_viol:
+            cv2.rectangle(frame, (x1, y1), (x2, y2), main_color, 1, cv2.LINE_AA)
+            return
+
         if det.track_id not in self.trails:
             self.trails[det.track_id] = deque(maxlen=16)
         self.trails[det.track_id].append((cx, cy))
@@ -113,9 +142,7 @@ class FrameVisualizer:
             thickness = max(1, int(factor * (i / len(trail_pts)) * 3))
             cv2.line(frame, pt1, pt2, main_color, thickness, cv2.LINE_AA)
 
-        overlay = frame.copy()
-        cv2.rectangle(overlay, (x1, y1), (x2, y2), main_color, -1)
-        cv2.addWeighted(overlay, 0.08, frame, 0.92, 0, frame)
+        _blend_rect(frame, x1, y1, x2, y2, main_color, 0.08)
 
         cv2.rectangle(frame, (x1, y1), (x2, y2), main_color, 1, cv2.LINE_AA)
 
@@ -134,6 +161,7 @@ class FrameVisualizer:
         # Sağ-Alt
         cv2.line(frame, (x2, y2), (x2 - corn_len, y2), main_color, c_thick)
         cv2.line(frame, (x2, y2), (x2, y2 - corn_len), main_color, c_thick)
+
 
         badges = []
 
@@ -172,6 +200,14 @@ class FrameVisualizer:
                 "text_color": speed_txt,
                 "border_color": speed_border
             })
+        elif getattr(speed_info, "provisional_kmh", None) is not None:
+            badges.append({
+                "type": "speed",
+                "text": f"~{speed_info.provisional_kmh} km/s (olculuyor)",
+                "bg_color": (60, 60, 60),
+                "text_color": (230, 230, 230),
+                "border_color": (140, 140, 140)
+            })
 
         if plate_res.plate_text:
             conf_str = f" (%{int(plate_res.confidence * 100)})" if plate_res.confidence else ""
@@ -190,7 +226,7 @@ class FrameVisualizer:
         for b in reversed(badges):
             if b["type"] == "plate":
                 text = b["text"]
-                (tw, th), bl = cv2.getTextSize(text, cv2.FONT_HERSHEY_DUPLEX, f_scale * 0.95, f_thick)
+                (tw, th), bl = _text_size(text, cv2.FONT_HERSHEY_DUPLEX, f_scale * 0.95, f_thick)
                 
                 box_w = tw + pad_x * 2 + int(24 * factor)
                 box_h = th + pad_y * 2
@@ -207,16 +243,16 @@ class FrameVisualizer:
 
                 blue_w = int(22 * factor)
                 cv2.rectangle(frame, (x1, b_top), (x1 + blue_w, b_bot), (180, 80, 20), -1)
-                cv2.putText(frame, "TR", (x1 + int(3 * factor), b_bot - int(5 * factor)),
+                _put_text(frame, "TR", (x1 + int(3 * factor), b_bot - int(5 * factor)),
                             cv2.FONT_HERSHEY_DUPLEX, f_scale * 0.45, (255, 255, 255), 1, cv2.LINE_AA)
 
-                cv2.putText(frame, text, (x1 + blue_w + pad_x, b_bot - pad_y),
+                _put_text(frame, text, (x1 + blue_w + pad_x, b_bot - pad_y),
                             cv2.FONT_HERSHEY_DUPLEX, f_scale * 0.95, (10, 10, 10), f_thick, cv2.LINE_AA)
                 cur_y = b_top - int(4 * factor)
 
             else:
                 text = b["text"]
-                (tw, th), bl = cv2.getTextSize(text, cv2.FONT_HERSHEY_DUPLEX, f_scale * 0.85, f_thick)
+                (tw, th), bl = _text_size(text, cv2.FONT_HERSHEY_DUPLEX, f_scale * 0.85, f_thick)
                 box_w = tw + pad_x * 2
                 box_h = th + pad_y * 2
                 b_top = cur_y - box_h
@@ -229,7 +265,7 @@ class FrameVisualizer:
 
                 cv2.rectangle(frame, (x1, b_top), (x1 + box_w, b_bot), b["bg_color"], -1)
                 cv2.rectangle(frame, (x1, b_top), (x1 + box_w, b_bot), b["border_color"], 1, cv2.LINE_AA)
-                cv2.putText(frame, text, (x1 + pad_x, b_bot - pad_y),
+                _put_text(frame, text, (x1 + pad_x, b_bot - pad_y),
                             cv2.FONT_HERSHEY_DUPLEX, f_scale * 0.85, b["text_color"], f_thick, cv2.LINE_AA)
                 cur_y = b_top - int(4 * factor)
 
@@ -250,9 +286,7 @@ class FrameVisualizer:
         pos_x = int(20 * factor)
         pos_y = int(20 * factor)
 
-        overlay = frame.copy()
-        cv2.rectangle(overlay, (pos_x, pos_y), (pos_x + panel_w, pos_y + panel_h), (12, 10, 8), -1)
-        cv2.addWeighted(overlay, 0.78, frame, 0.22, 0, frame)
+        _blend_rect(frame, pos_x, pos_y, pos_x + panel_w, pos_y + panel_h, (12, 10, 8), 0.78)
 
         cv2.rectangle(frame, (pos_x, pos_y), (pos_x + panel_w, pos_y + panel_h), (50, 65, 85), 1)
         
@@ -265,7 +299,7 @@ class FrameVisualizer:
         dot_y = pos_y + int(24 * factor)
         cv2.circle(frame, (dot_x, dot_y), int(5 * factor), (50, 220, 100), -1)
 
-        cv2.putText(frame, "SMART TRAFFIC PRO // TRAFIK IZLEME", (dot_x + int(12 * factor), dot_y + int(4 * factor)),
+        _put_text(frame, "SMART TRAFFIC PRO // TRAFIK IZLEME", (dot_x + int(12 * factor), dot_y + int(4 * factor)),
                     cv2.FONT_HERSHEY_DUPLEX, f_scale * 1.05, (255, 255, 255), max(1, int(1.4 * factor)), cv2.LINE_AA)
 
         viol_count = summary.get("violations_count", 0)
@@ -283,6 +317,6 @@ class FrameVisualizer:
         start_y = pos_y + int(48 * factor)
         step_y = int(20 * factor)
         for text, col, scale in lines:
-            cv2.putText(frame, text, (pos_x + int(14 * factor), start_y),
+            _put_text(frame, text, (pos_x + int(14 * factor), start_y),
                         cv2.FONT_HERSHEY_DUPLEX, scale, col, f_thick, cv2.LINE_AA)
             start_y += step_y
