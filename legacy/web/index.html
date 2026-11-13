@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMART TRAFFIC PRO | Yapay Zeka Trafik İzleme & ALPR Merkezi</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="css/style.css?v=5">
+</head>
+<body>
+    <!-- Üst Siber Navigasyon Çubuğu -->
+    <header class="navbar">
+        <div class="nav-left">
+            <div class="brand-logo">
+                <i class="fa-solid fa-bolt-lightning neon-icon"></i>
+                <div class="brand-text">
+                    <span class="brand-title">SMART TRAFFIC <span class="highlight">PRO</span></span>
+                    <span class="brand-subtitle">YAPAY ZEKA DESTEKLİ HIZ & PLAKA TESPİT MERKEZİ</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="nav-center">
+            <div class="system-status-chip">
+                <span class="pulsing-dot" id="systemDot"></span>
+                <span id="systemStatusText">SİSTEM HAZIR</span>
+            </div>
+            <div class="badge-pill"><i class="fa-solid fa-microchip"></i> YOLO11m + ByteTrack</div>
+            <div class="badge-pill"><i class="fa-solid fa-id-card"></i> fast-alpr OCR</div>
+            <div class="badge-pill"><i class="fa-solid fa-database"></i> SQLite3 ACID</div>
+        </div>
+
+        <div class="nav-right">
+            <div class="time-display" id="clockDisplay">00:00:00</div>
+        </div>
+    </header>
+
+    <!-- Kara Liste / Aranan Araç Alarm Çubuğu -->
+    <div class="watchlist-alert-banner" id="watchlistAlertBanner" style="display:none;">
+        <div class="alert-content">
+            <i class="fa-solid fa-triangle-exclamation alert-icon"></i>
+            <div>
+                <div class="alert-title">🚨 ARANAN ARAÇ / KARA LİSTE TESPİT EDİLDİ!</div>
+                <div class="alert-desc" id="watchlistAlertDesc">Plaka: 34VF5821 - Sebep: Çalıntı İhbarı / Asayiş Şube</div>
+            </div>
+        </div>
+        <button class="btn btn-sm btn-outline" style="border-color:#FFF; color:#FFF;" onclick="dismissWatchlistAlert()"><i class="fa-solid fa-xmark"></i> Kapat</button>
+    </div>
+
+    <!-- Ana Panel -->
+    <main class="dashboard-container">
+        <!-- Üst Telemetri KPI Kartları -->
+        <section class="kpi-grid">
+            <div class="kpi-card" id="cardTotal">
+                <div class="kpi-header">
+                    <span class="kpi-label"><i class="fa-solid fa-car"></i> Takip Edilen Araç</span>
+                    <span class="kpi-trend up"><i class="fa-solid fa-arrow-trend-up"></i> CANLI</span>
+                </div>
+                <div class="kpi-number" id="kpiTotal">0</div>
+                <div class="kpi-subtext">Kesintisiz çoklu sınıf takibi</div>
+            </div>
+
+            <div class="kpi-card" id="cardSpeed">
+                <div class="kpi-header">
+                    <span class="kpi-label"><i class="fa-solid fa-gauge-high"></i> Hız Ölçüldü</span>
+                    <span class="kpi-tag green">KALİBRE</span>
+                </div>
+                <div class="kpi-number" id="kpiSpeed">0</div>
+                <div class="kpi-subtext">Poligon zaman delta hesabı</div>
+            </div>
+
+            <div class="kpi-card purple" id="cardPlates">
+                <div class="kpi-header">
+                    <span class="kpi-label"><i class="fa-solid fa-id-badge"></i> Kilitlenen Plaka</span>
+                    <span class="kpi-tag purple">GÜVEN &ge; %90</span>
+                </div>
+                <div class="kpi-number" id="kpiPlates">0</div>
+                <div class="kpi-subtext">Çok kareli mutabakat tamponu</div>
+            </div>
+
+            <div class="kpi-card danger" id="cardViolations">
+                <div class="kpi-header">
+                    <span class="kpi-label"><i class="fa-solid fa-triangle-exclamation"></i> Hız İhlalleri</span>
+                    <span class="kpi-tag red" id="violationTag">UYGULANIYOR</span>
+                </div>
+                <div class="kpi-number red-text" id="kpiViolations">0</div>
+                <div class="kpi-subtext">Otomatik anlık kanıt fotoğrafı</div>
+            </div>
+
+            <div class="kpi-card" id="cardAvgSpeed">
+                <div class="kpi-header">
+                    <span class="kpi-label"><i class="fa-solid fa-chart-line"></i> Ortalama Hız</span>
+                    <span class="kpi-unit-pill">KM/S</span>
+                </div>
+                <div class="kpi-number" id="kpiAvgSpeed">0.0 <span class="unit">km/s</span></div>
+                <div class="kpi-subtext">Yol segmenti genel ortalaması</div>
+            </div>
+
+            <div class="kpi-card" id="cardFps">
+                <div class="kpi-header">
+                    <span class="kpi-label"><i class="fa-solid fa-stopwatch"></i> İşleme Hızı</span>
+                    <span class="kpi-tag blue">DONANIM</span>
+                </div>
+                <div class="kpi-number" id="kpiFps">0.0 <span class="unit">FPS</span></div>
+                <div class="kpi-subtext">Kare işleme verimi</div>
+            </div>
+        </section>
+
+        <!-- Ana Çalışma Alanı: Canlı Video + Sağ Panel -->
+        <div class="workspace-grid">
+            <!-- Sol: Video İzleme Paneli -->
+            <section class="video-panel">
+                <div class="panel-header">
+                    <div class="panel-title">
+                        <i class="fa-solid fa-video"></i>
+                        <span>CANLI OPTİK GÖZETLEME AKIŞI</span>
+                    </div>
+                    <div class="stream-info">
+                        <span class="info-pill" id="feedResBadge">4K UHD / 1080p</span>
+                        <span class="info-pill" id="feedFpsBadge">30.0 FPS</span>
+                    </div>
+                </div>
+
+                <div class="viewport-wrapper" id="viewportContainer">
+                    <img id="streamPlayer" src="" alt="Trafik Video Akışı">
+                    <video id="finishedVideoPlayer" controls style="display:none; width:100%; height:100%; object-fit:contain; background:#000;"></video>
+                    
+                    <div class="viewport-overlay" id="placeholderOverlay">
+                        <i class="fa-solid fa-circle-play start-icon" onclick="startStream()"></i>
+                        <p>Akış Duraklatıldı / Beklemede. Analizi başlatmak veya tam işlemek için aşağıdaki butonları kullanın.</p>
+                    </div>
+
+                    <!-- Hızlı Tam İşleme İlerleme Paneli -->
+                    <div class="viewport-overlay" id="batchProgressOverlay" style="display:none; flex-direction:column; background:rgba(10, 15, 30, 0.92); z-index:15;">
+                        <i class="fa-solid fa-bolt-lightning" style="font-size:3rem; color:#00F2FE; margin-bottom:15px; animation: pulse 1.5s infinite;"></i>
+                        <h3 id="batchProgressTitle" style="color:#FFF; font-size:1.3rem; margin-bottom:8px;">Yapay Zeka Videoyu İşliyor...</h3>
+                        <p id="batchProgressSubtitle" style="color:#94A3B8; font-size:0.9rem; margin-bottom:20px;">Tüm kareler analiz ediliyor, hızlar hesaplanıyor ve plakalar okunuyor.</p>
+                        <div style="width:80%; max-width:450px; height:12px; background:#1E293B; border-radius:6px; overflow:hidden; border:1px solid #334155; margin-bottom:10px;">
+                            <div id="batchProgressBar" style="width:0%; height:100%; background:linear-gradient(90deg, #00F2FE, #4FACFE); transition:width 0.3s ease;"></div>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; width:80%; max-width:450px; color:#38BDF8; font-weight:bold; font-size:0.95rem;">
+                            <span id="batchPercent">%0</span>
+                            <span id="batchFrameCount">0 / 0 Kare</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Oynatma & Hız Kontrol Paneli -->
+                <div class="control-dock">
+                    <button class="btn btn-primary" id="btnStart" onclick="startStream()" title="Canlı kare kare analiz akışı">
+                        <i class="fa-solid fa-play"></i> CANLI AKIŞ
+                    </button>
+                    <button class="btn btn-warning" id="btnBatch" onclick="startBatchProcessing()" style="background:linear-gradient(135deg, #F59E0B, #D97706); color:#FFF; font-weight:bold;" title="Videoyu arka planda yüksek hızda analiz eder ve bitince hazır halini akıcı oynatır!">
+                        <i class="fa-solid fa-bolt"></i> TAM İŞLE & OYNAT
+                    </button>
+                    <button class="btn btn-danger" id="btnStop" onclick="stopEverything()" title="Canlı akışı, analizi ve oynatıcıyı anında tamamen durdurur">
+                        <i class="fa-solid fa-circle-stop"></i> DURDUR
+                    </button>
+                    <a id="btnDownloadProcessed" href="/api/processed_video" class="btn btn-outline" download="analiz_edilen_trafik_videosu.mp4" style="display:none;" title="İşlenmiş tam videoyu MP4 olarak indir">
+                        <i class="fa-solid fa-download"></i> VİDEOYU İNDİR
+                    </a>
+                    <div class="divider"></div>
+                    <div class="speed-slider-group">
+                        <label for="speedLimitInput"><i class="fa-solid fa-gauge"></i> Hız Sınırı:</label>
+                        <input type="range" id="speedLimitInput" min="30" max="140" value="80" step="5" oninput="updateSpeedLabel(this.value)">
+                        <span class="slider-val" id="speedLimitVal">80 km/s</span>
+                    </div>
+                    <button class="btn btn-icon" title="Tam Ekran" onclick="toggleFullscreen()">
+                        <i class="fa-solid fa-expand"></i>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Sağ: Sekmeler ve Analitik Paneller -->
+            <section class="tabs-panel">
+                <nav class="tabs-nav">
+                    <button class="tab-btn active" onclick="switchTab('tab-db')">
+                        <i class="fa-solid fa-database"></i> Kayıtlar
+                    </button>
+                    <button class="tab-btn" onclick="switchTab('tab-charts')">
+                        <i class="fa-solid fa-chart-pie"></i> İstatistikler
+                    </button>
+                    <button class="tab-btn" onclick="switchTab('tab-watchlist')">
+                        <i class="fa-solid fa-triangle-exclamation"></i> Kara Liste
+                    </button>
+                    <button class="tab-btn" onclick="switchTab('tab-gallery')">
+                        <i class="fa-solid fa-images"></i> İhlal Kanıtları
+                    </button>
+                    <button class="tab-btn" onclick="switchTab('tab-source')">
+                        <i class="fa-solid fa-folder-open"></i> Video Kaynağı
+                    </button>
+                </nav>
+
+                <!-- Sekme 1: Kayıtlar Tablosu -->
+                <div class="tab-content active" id="tab-db">
+                    <div class="tab-toolbar">
+                        <div class="search-box">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <input type="text" id="plateSearch" placeholder="Plaka ara (örn: 34VF, 34BMS)..." onkeyup="filterRecords()">
+                        </div>
+                        <label class="filter-check">
+                            <input type="checkbox" id="checkViolationsOnly" onchange="filterRecords()">
+                            <span>Sadece İhlaller</span>
+                        </label>
+                        <div class="export-group">
+                            <button class="btn btn-sm btn-danger" onclick="clearAllRecords()" title="Tüm tablo ve veritabanı kayıtlarını temizle">
+                                <i class="fa-solid fa-trash"></i> Temizle
+                            </button>
+                            <a href="/api/export/csv" class="btn btn-sm btn-outline" download title="CSV olarak indir">
+                                <i class="fa-solid fa-file-csv"></i> CSV
+                            </a>
+                            <a href="/api/export/db" class="btn btn-sm btn-outline" download title="SQLite veritabanını indir">
+                                <i class="fa-solid fa-database"></i> DB
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Araç ID</th>
+                                    <th>Sınıf</th>
+                                    <th>Hız</th>
+                                    <th>Plaka</th>
+                                    <th>Durum</th>
+                                    <th>Zaman Damgası</th>
+                                    <th>Tutanak</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recordsTableBody">
+                                <tr>
+                                    <td colspan="7" class="empty-state">Trafik kayıtları yükleniyor...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Sekme: Trafik İstatistikleri Grafikleri -->
+                <div class="tab-content" id="tab-charts">
+                    <div class="analytics-summary-bar">
+                        <div class="analytics-mini-stat">
+                            <div class="stat-label">Toplam Ölçüm</div>
+                            <div class="stat-val" id="chartTotalCount">0</div>
+                        </div>
+                        <div class="analytics-mini-stat">
+                            <div class="stat-label">İhlal Oranı</div>
+                            <div class="stat-val" style="color:#EF4444;" id="chartViolRate">%0.0</div>
+                        </div>
+                        <div class="analytics-mini-stat">
+                            <div class="stat-label">Ortalama Hız</div>
+                            <div class="stat-val" style="color:#38BDF8;" id="chartAvgSpeed">0.0 km/s</div>
+                        </div>
+                        <div class="analytics-mini-stat">
+                            <div class="stat-label">Zirve Hız</div>
+                            <div class="stat-val" style="color:#F59E0B;" id="chartMaxSpeed">0 km/s</div>
+                        </div>
+                    </div>
+
+                    <div class="analytics-grid">
+                        <div class="analytics-card">
+                            <h5><i class="fa-solid fa-chart-simple text-cyan"></i> Hız Dağılımı ve Aşım Grupları</h5>
+                            <div style="height: 220px; position: relative;">
+                                <canvas id="speedChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="analytics-card">
+                            <h5><i class="fa-solid fa-chart-pie text-cyan"></i> Araç Sınıfları Dağılımı</h5>
+                            <div style="height: 220px; position: relative;">
+                                <canvas id="classChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sekme: Kara Liste (Aranan Araç) Yönetimi -->
+                <div class="tab-content" id="tab-watchlist">
+                    <div class="watchlist-form-card">
+                        <h4 style="margin-bottom:6px;"><i class="fa-solid fa-shield-halved text-cyan"></i> Kara Listeye Plaka Ekle</h4>
+                        <p class="text-muted" style="font-size:0.82rem; margin-bottom:12px;">Tespit edildiğinde sesli ve görsel alarm verilmesini istediğiniz plakaları kaydedin.</p>
+                        <div class="watchlist-form-row">
+                            <input type="text" id="watchPlateInput" class="form-control" placeholder="Plaka (örn: 34VF5821)" style="text-transform:uppercase;">
+                            <input type="text" id="watchReasonInput" class="form-control" placeholder="Arama Nedeni (örn: Çalıntı, İcra, Sahte Plaka)">
+                            <select id="watchSeverityInput" class="form-control">
+                                <option value="danger">Kritik Alarm</option>
+                                <option value="warning">İnceleme / Uyarı</option>
+                            </select>
+                            <button class="btn btn-danger" onclick="addWatchlistPlate()">
+                                <i class="fa-solid fa-plus"></i> Listeye Ekle
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="table-container" style="max-height: 270px;">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Plaka</th>
+                                    <th>Aranma Sebebi</th>
+                                    <th>Seviye</th>
+                                    <th>Eklenme Tarihi</th>
+                                    <th>İşlem</th>
+                                </tr>
+                            </thead>
+                            <tbody id="watchlistTableBody">
+                                <tr>
+                                    <td colspan="5" class="empty-state">Kara liste yükleniyor...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Sekme 2: İhlal Kanıt Galerisi -->
+                <div class="tab-content" id="tab-gallery">
+                    <div class="gallery-header">
+                        <h4>Hız Sınırı Aşımı İhlal Kanıt Fotoğrafları</h4>
+                        <button class="btn btn-sm btn-secondary" onclick="loadGallery()"><i class="fa-solid fa-rotate-right"></i> Yenile</button>
+                    </div>
+                    <div class="gallery-grid" id="galleryGrid">
+                        <div class="empty-state">Henüz kaydedilmiş ihlal kanıtı bulunmuyor.</div>
+                    </div>
+                </div>
+
+                <!-- Sekme 3: Video Kaynağı ve Yükleme -->
+                <div class="tab-content" id="tab-source">
+                    <h4>Video Kaynağı Yapılandırması</h4>
+                    <p class="text-muted">Mevcut bir trafik videosunu seçin veya yeni bir video dosyası yükleyin.</p>
+
+                    <div class="form-group">
+                        <label>Aktif Video Dosya Yolu:</label>
+                        <input type="text" id="videoSourceInput" class="form-control" value="output/uploads/demo_part1_100frames.mp4">
+                    </div>
+
+                    <div class="upload-dropzone" id="dropZone">
+                        <i class="fa-solid fa-cloud-arrow-up upload-icon"></i>
+                        <p><strong>MP4 Video Dosyasını Sürükleyip Bırakın</strong> veya dosya seçmek için tıklayın</p>
+                        <input type="file" id="fileInput" accept="video/mp4,video/avi,video/mkv" style="display:none;" onchange="handleFileUpload(this.files)">
+                        <div class="upload-progress" id="uploadProgress" style="display:none;">
+                            <div class="progress-bar-fill" id="progressFill"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Kanıt Fotoğrafı Büyütme Modalı -->
+    <div class="modal" id="imageModal">
+        <span class="modal-close" onclick="closeModal()">&times;</span>
+        <img class="modal-content" id="modalImg">
+        <div class="modal-caption" id="modalCaption"></div>
+        <div style="display:flex; gap:12px; margin-top:14px;">
+            <a id="modalPdfBtn" href="#" target="_blank" class="btn btn-primary" download>
+                <i class="fa-solid fa-file-pdf"></i> Resmi PDF İhlal Tutanağı İndir
+            </a>
+            <button class="btn btn-secondary" onclick="closeModal()">
+                <i class="fa-solid fa-xmark"></i> Kapat
+            </button>
+        </div>
+    </div>
+
+    <script src="js/app.js?v=5"></script>
+</body>
+</html>

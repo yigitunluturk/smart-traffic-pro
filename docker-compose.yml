@@ -1,0 +1,12 @@
+services:
+  smart-traffic-pro:
+    build: .
+    container_name: smart_traffic_pro
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./output:/app/output
+      - ./config:/app/config
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
