@@ -1,0 +1,30 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+coverage.xml
+.env
+.venv/
+env/
+output/ihlaller/*.jpg
+output/*.mp4
+output/test_*.db
+output/test_*.csv
+output/test_viol_*
+
+# Datasets & evaluation artefacts (not committed)
+data/
+models/*.pt
+runs/
+output/eval/*_tmp*
+
+# Runtime outputs: videos, database, CSV and evidence contain licence plates (KVKK) -> never committed
+output/uploads/
+output/*.db
+output/*.csv
+output/raporlar/
+output/ihlaller/
+output/eval/
+output/test_results.xml

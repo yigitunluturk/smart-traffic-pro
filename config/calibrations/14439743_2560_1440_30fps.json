@@ -1,0 +1,71 @@
+{
+  "description": "Unkapani / Halic koprusu (Istanbul) - sabit kamera. Referans kare: videonun 1. karesi. Goruntu noktalari 1280x720 tabanindadir.",
+  "base_resolution": [
+    1280,
+    720
+  ],
+  "image_points": [
+    [
+      300.0,
+      613.0
+    ],
+    [
+      820.0,
+      613.0
+    ],
+    [
+      730.0,
+      388.0
+    ],
+    [
+      500.0,
+      388.0
+    ]
+  ],
+  "world_points": [
+    [
+      0.0,
+      0.0
+    ],
+    [
+      3.5,
+      0.0
+    ],
+    [
+      3.5,
+      24.0
+    ],
+    [
+      0.0,
+      24.0
+    ]
+  ],
+  "measure_y_range": [
+    0.45,
+    0.985
+  ],
+  "notes": "Sol yol: soldan 2. ve 3. serit arasindaki kesik cizgi X=0, orta kesik cizgi X=3.5 m (serit genisligi 3.5 m varsayimi). Boyuna mesafe: iki kesik cizgi periyodu = 24 m (12 m periyot; kamera odak uzakligi ve ufuk cizgisinden oz-kalibrasyonla ~12.2 m dogrulandi). Sahada veya Google Earth cetveli ile olculup guncellenmesi onerilir.",
+  "lanes": [
+    {
+      "name": "Sol Yol - Serit 1",
+      "x_min": -3.5,
+      "x_max": 0.0
+    },
+    {
+      "name": "Sol Yol - Serit 2",
+      "x_min": 0.0,
+      "x_max": 3.5
+    },
+    {
+      "name": "Sol Yol - Serit 3",
+      "x_min": 3.5,
+      "x_max": 7.6
+    },
+    {
+      "name": "Sag Yol",
+      "x_min": 7.6,
+      "x_max": 40.0
+    }
+  ],
+  "speed_limit": 80
+}
