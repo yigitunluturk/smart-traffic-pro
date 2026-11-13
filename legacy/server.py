@@ -18,9 +18,6 @@ from src.pipeline import TrafficPipeline
 from src.database import TrafficDatabase
 from src.report_generator import generate_violation_pdf
 
-# Göreli yolların (config, output, web) her zaman proje klasörüne göre çözülmesi için
-# LEGACY / UNSUPPORTED: Resmi arayüz Streamlit (app.py). Bu panel yalnızca arşiv amaçlıdır.
-# Çalıştırma: proje kökünden  python legacy/server.py
 import sys
 LEGACY_DIR = os.path.dirname(os.path.abspath(__file__))
 BASE_DIR = os.path.dirname(LEGACY_DIR)
@@ -30,7 +27,6 @@ os.chdir(BASE_DIR)
 app = Flask(__name__, static_folder=os.path.join(LEGACY_DIR, "web"), static_url_path="")
 CORS(app)
 
-# Global Durum
 CONFIG_PATH = "config/default_config.yaml"
 with open(CONFIG_PATH, "r", encoding="utf-8") as f:
     config = yaml.safe_load(f)
@@ -43,9 +39,7 @@ VIDEO_EXTENSIONS = (".mp4", ".avi", ".mov", ".mkv")
 
 db = TrafficDatabase(db_path=DB_PATH)
 
-
 def _default_video_path() -> str:
-    """Varsayılan video: demo videosu, yoksa yüklenenlerden ilki."""
     preferred = os.path.join(UPLOAD_DIR, "demo_part1_100frames.mp4")
     if os.path.exists(preferred):
         return preferred
@@ -79,7 +73,6 @@ def _empty_stats() -> dict:
         "latest_alert": None
     }
 
-
 class StreamController:
     def __init__(self):
         self.pipeline: Optional[TrafficPipeline] = None
@@ -94,7 +87,6 @@ class StreamController:
         self._stop_event: Optional[threading.Event] = None
 
     def start(self, video_path: Optional[str] = None, speed_limit: Optional[int] = None):
-        # Önceki akış varsa tamamen bitmesini bekle (aynı anda iki işçi çalışmasın)
         self.stop()
 
         with self.lock:
@@ -107,7 +99,6 @@ class StreamController:
                 cap.release()
                 raise RuntimeError(f"Video açılamadı: {path}")
 
-            # Yalnızca doğrulanmış değerleri kalıcı yap
             self.current_video_path = path
             if speed_limit:
                 self.speed_limit = int(speed_limit)
@@ -140,7 +131,7 @@ class StreamController:
             while not stop_event.is_set():
                 if self.is_paused:
                     time.sleep(0.05)
-                    t_start += 0.05  # Duraklatma süresini FPS hesabına katma
+                    t_start += 0.05  
                     continue
 
                 ret, frame = cap.read()
@@ -150,7 +141,6 @@ class StreamController:
                 frame_idx += 1
                 annotated, summary = pipeline.process_frame(frame, frame_idx, fps)
 
-                # Kara liste kontrolü (her kilitlenen plaka için bir kez)
                 for trk_id, state in pipeline.plate_recognizer.track_states.items():
                     p_txt = state.locked_text
                     if not state.is_locked or not p_txt or p_txt in checked_plates:
@@ -169,7 +159,6 @@ class StreamController:
                             self.stats["watchlist_alerts"].append(alert_obj)
                             self.stats["latest_alert"] = alert_obj
 
-                # Web yayını için optimize edilmiş JPEG sıkıştırması (4K yükünü hafifletir)
                 h_frame, w_frame = annotated.shape[:2]
                 if w_frame > 1280:
                     scale_factor = 1280.0 / w_frame
@@ -193,7 +182,6 @@ class StreamController:
                         "frame_no": frame_idx
                     })
 
-                # Donanım nefes alması için ufak bekleme
                 time.sleep(0.005)
         except Exception as e:
             print(f"[Stream] Hata: {e}")
@@ -207,7 +195,6 @@ class StreamController:
             except Exception as e:
                 print(f"[Stream] CSV dışa aktarma uyarısı: {e}")
             with self.lock:
-                # Yalnızca hâlâ aktif olan akışsa durumu kapat
                 if self._stop_event is stop_event:
                     self.is_running = False
                     self.is_paused = False
@@ -241,7 +228,6 @@ class StreamController:
 
 streamer = StreamController()
 
-
 # ------------------------------------------------------------------------------
 # Frontend & API Endpoints
 # ------------------------------------------------------------------------------
@@ -265,22 +251,20 @@ def video_feed():
                 yield (b"--frame\r\n"
                        b"Content-Type: image/jpeg\r\n\r\n" + frame + b"\r\n")
             if not streamer.is_running:
-                break  # Akış bitti: son kare gönderildi, bağlantıyı kapat
-            time.sleep(0.033)  # ~30 FPS
+                break
+            time.sleep(0.033)
 
     return Response(frame_generator(), mimetype="multipart/x-mixed-replace; boundary=frame")
 
 
 @app.route("/api/stats")
 def get_stats():
-    """Anlık telemetri ve sistem sayaçları."""
     with streamer.lock:
         return jsonify(dict(streamer.stats))
 
 
 @app.route("/api/config")
 def get_config():
-    """Arayüzün başlangıç değerleri."""
     return jsonify({
         "default_video_path": streamer.current_video_path,
         "speed_limit": streamer.speed_limit
@@ -289,7 +273,6 @@ def get_config():
 
 @app.route("/api/control", methods=["POST"])
 def control_stream():
-    """Oynat, Duraklat, Durdur komutları."""
     data = request.get_json(silent=True) or {}
     action = data.get("action")
 
@@ -314,7 +297,6 @@ def control_stream():
 
 @app.route("/api/records")
 def get_records():
-    """Veritabanından tüm kayıtları çeker."""
     plate = request.args.get("plate", "")
     violations_only = request.args.get("violations_only", "false").lower() == "true"
 
@@ -325,7 +307,6 @@ def get_records():
     if violations_only:
         records = [r for r in records if r.get("is_speeding")]
 
-    # Kara liste kontrolü ile zenginleştir
     for r in records:
         p = r.get("plate_text")
         if p:
@@ -338,7 +319,6 @@ def get_records():
 
 @app.route("/api/records/<int:record_id>/pdf")
 def download_record_pdf(record_id: int):
-    """Araç kaydı için resmi formatta PDF İhlal Tutanağı üretir ve indirir."""
     record = db.get_record_by_id(record_id)
     if not record:
         return jsonify({"error": "Kayıt bulunamadı."}), 404
@@ -362,8 +342,6 @@ def download_record_pdf(record_id: int):
 
 
 def _record_from_snapshot_filename(filename: str) -> Optional[dict]:
-    """Veritabanında kaydı olmayan kanıt fotoğrafı için dosya adından bilgi çıkarır.
-    Dosya adı biçimi: violation_id{track}_{plaka}_{hız}kmh.jpg"""
     snap_path = os.path.join(os.path.abspath(VIOLATIONS_DIR), filename)
     if not os.path.isfile(snap_path):
         return None
@@ -393,7 +371,6 @@ def _record_from_snapshot_filename(filename: str) -> Optional[dict]:
 
 @app.route("/api/violations/<filename>/pdf")
 def download_violation_image_pdf(filename: str):
-    """Kanıt fotoğrafı üzerinden PDF İhlal Tutanağı üretir."""
     filename = secure_filename(filename)
     record = db.get_record_by_snapshot(filename) or _record_from_snapshot_filename(filename)
     if not record:
@@ -414,19 +391,16 @@ def download_violation_image_pdf(filename: str):
     except Exception as e:
         return jsonify({"error": f"PDF hatası: {e}"}), 500
 
-
 # ------------------------------------------------------------------------------
 # Kara Liste (Aranan Araç) API Uç Noktaları
 # ------------------------------------------------------------------------------
 @app.route("/api/watchlist", methods=["GET"])
 def get_watchlist():
-    """Aranan araçlar / kara liste listesi."""
     return jsonify(db.get_watchlist())
 
 
 @app.route("/api/watchlist", methods=["POST"])
 def add_watchlist():
-    """Kara listeye yeni plaka ekler."""
     data = request.get_json(silent=True) or {}
     plate = (data.get("plate_text") or "").strip().upper()
     reason = (data.get("reason") or "Şüpheli / Aranan Araç").strip()
@@ -440,23 +414,19 @@ def add_watchlist():
 
 @app.route("/api/watchlist/<int:item_id>", methods=["DELETE", "POST"])
 def delete_watchlist(item_id: int):
-    """Kara listeden plaka kaydını kaldırır."""
     success = db.remove_from_watchlist(item_id)
     return jsonify({"status": "deleted" if success else "error"})
-
 
 # ------------------------------------------------------------------------------
 # Trafik Analitik İstatistikleri (Chart.js için)
 # ------------------------------------------------------------------------------
 @app.route("/api/stats/analytics")
 def get_analytics():
-    """Hız dağılımı ve araç sınıfı istatistikleri."""
     return jsonify(db.get_analytics_stats())
 
 
 @app.route("/api/records/clear", methods=["POST", "DELETE"])
 def clear_all_records():
-    """Tüm araç ve ihlal kayıtlarını sıfırlar."""
     success = db.clear_records()
     pipeline = streamer.pipeline
     if pipeline is not None:
@@ -468,7 +438,6 @@ def clear_all_records():
 
 @app.route("/api/records/<int:record_id>/plate", methods=["PATCH", "POST"])
 def update_record_plate(record_id: int):
-    """Yanlış okunan plakayı arayüzden elle düzeltme uç noktası."""
     data = request.get_json(silent=True) or {}
     new_plate = (data.get("plate_text") or "").strip().upper()
     if not new_plate:
@@ -482,7 +451,6 @@ def update_record_plate(record_id: int):
 
 @app.route("/api/violations")
 def get_violations():
-    """İhlal fotoğraflarının listesi (en yeniler önce)."""
     images = []
     if os.path.exists(VIOLATIONS_DIR):
         files = [f for f in os.listdir(VIOLATIONS_DIR) if f.lower().endswith((".jpg", ".png", ".jpeg"))]
@@ -499,7 +467,6 @@ def serve_violation_image(filename):
 
 @app.route("/api/upload", methods=["POST"])
 def upload_video():
-    """Kullanıcının yüklediği videoyu kaydeder."""
     if "video" not in request.files:
         return jsonify({"error": "Dosya gönderilmedi."}), 400
     file = request.files["video"]
@@ -523,7 +490,6 @@ def upload_video():
 
 @app.route("/api/export/csv")
 def export_csv():
-    """Veritabanındaki tüm kayıtları CSV olarak indirir."""
     records = db.get_all_records()
     if not records:
         return jsonify({"error": "Dışa aktarılacak kayıt yok."}), 404
@@ -540,7 +506,6 @@ def export_db():
     if os.path.exists(DB_PATH):
         return send_file(os.path.abspath(DB_PATH), as_attachment=True, download_name="traffic_surveillance.db")
     return jsonify({"error": "Database not found"}), 404
-
 
 # ------------------------------------------------------------------------------
 # Toplu (Batch) Video İşleme
@@ -577,7 +542,6 @@ def _run_batch_processing(video_path: str, speed_limit: int):
             batch_state["total_frames"] = total
             if total > 0:
                 batch_state["progress"] = min(99, int((current / total) * 100))
-            # Üstteki KPI kartları toplu analiz sırasında da güncellensin
             with streamer.lock:
                 streamer.stats.update({k: summary.get(k, streamer.stats.get(k)) for k in (
                     "total_vehicles", "speed_measured_count", "plate_recognized_count",
@@ -591,7 +555,6 @@ def _run_batch_processing(video_path: str, speed_limit: int):
             progress_callback=progress_cb
         )
 
-        # H.264 dönüştürme (Tüm tarayıcılarda akıcı HTML5 oynatımı için)
         converted = False
         try:
             ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
@@ -627,7 +590,6 @@ def _run_batch_processing(video_path: str, speed_limit: int):
 
 @app.route("/api/batch/start", methods=["POST"])
 def start_batch():
-    """Videoyu canlı yayınlamadan arka planda yüksek hızda baştan sona işler."""
     data = request.get_json(silent=True) or {}
     video_path = (data.get("video_path") or "").strip() or streamer.current_video_path
     try:
@@ -640,7 +602,6 @@ def start_batch():
     if not os.path.exists(video_path):
         return jsonify({"error": f"Video dosyası bulunamadı: {video_path}"}), 400
 
-    # GPU'yu paylaşmamak için canlı akışı durdur
     streamer.stop()
     streamer.reset_stats()
 
@@ -660,7 +621,6 @@ def start_batch():
 
 @app.route("/api/batch/cancel", methods=["POST"])
 def cancel_batch():
-    """Devam eden toplu analizi iptal eder."""
     if batch_state["is_processing"]:
         batch_cancel_event.set()
         return jsonify({"status": "cancelling"})
@@ -669,13 +629,11 @@ def cancel_batch():
 
 @app.route("/api/batch/status")
 def get_batch_status():
-    """Toplu video işleme ilerleme durumu."""
     return jsonify(batch_state)
 
 
 @app.route("/api/processed_video")
 def get_processed_video():
-    """Tamamlanmış, üzerinde hız ve plaka bilgileri işlenmiş videoyu sunar."""
     path = os.path.abspath("output/analiz_edilen_video.mp4")
     if os.path.exists(path):
         return send_file(path, mimetype="video/mp4", conditional=True)
