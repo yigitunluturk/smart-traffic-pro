@@ -46,8 +46,8 @@ speed:
       exit_polygon: [[700, 489], [1000, 489], [1000, 400], [700, 400]]
       calib_pixel_length: 86.0
       real_distance_m: 9.144
-      color_entry: [0, 255, 255]     # BGR: Yellow
-      color_exit: [0, 0, 255]        # BGR: Red
+      color_entry: [0, 255, 255]
+      color_exit: [0, 0, 255]
 
     - name: "Left_Lane"
       direction: "downward"
